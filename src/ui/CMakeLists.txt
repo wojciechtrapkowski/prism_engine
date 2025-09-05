@@ -8,7 +8,6 @@ set(UI_SOURCES
     scene_hierarchy_ui.cpp
     menu_bar_ui.cpp
     camera_settings_ui.cpp
-    camera_selection_ui.cpp
 )
 
 set(UI_HEADERS
@@ -16,7 +15,6 @@ set(UI_HEADERS
     public/ui/scene_hierarchy_ui.hpp
     public/ui/menu_bar_ui.hpp
     public/ui/camera_settings_ui.hpp
-    public/ui/camera_selection_ui.hpp
 )
 
 add_library(${PRISM_UI_LIBRARY_NAME} STATIC

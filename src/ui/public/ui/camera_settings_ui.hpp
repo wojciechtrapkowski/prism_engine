@@ -4,6 +4,16 @@
 #include "resources/scene.hpp"
 
 namespace Prism::UI {
+    namespace {
+        constexpr auto FPS_CAMERA_NAME = "FPS Camera";
+
+        struct CameraType {
+            const char *name;
+            std::function<bool(entt::registry &, entt::entity)> checkIfActive;
+            std::function<void(entt::registry &)> makeActive;
+        };
+    }; // namespace
+
     class CameraSettingsUI {
       public:
         CameraSettingsUI(Resources::ContextResources &contextResources);

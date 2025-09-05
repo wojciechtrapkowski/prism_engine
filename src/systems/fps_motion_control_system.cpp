@@ -120,11 +120,13 @@ namespace Prism::Systems {
         }
         if (m_keyToStateMap[Events::MoveEvents::Keys::SPACE] ==
             Events::MoveEvents::InputAction::Pressed) {
-            cameraPosition += cameraUp * cameraControl.moveSpeed * deltaTime;
+            cameraPosition +=
+                WORLD_UP_VECTOR * cameraControl.moveSpeed * deltaTime;
         }
         if (m_keyToStateMap[Events::MoveEvents::Keys::SHIFT] ==
             Events::MoveEvents::InputAction::Pressed) {
-            cameraPosition -= cameraUp * cameraControl.moveSpeed * deltaTime;
+            cameraPosition -=
+                WORLD_UP_VECTOR * cameraControl.moveSpeed * deltaTime;
         }
 
         glm::mat4 rotationMat = cameraRotation;

@@ -3,7 +3,6 @@
 #include "resources/context_resources.hpp"
 #include "resources/scene.hpp"
 
-#include "ui/camera_selection_ui.hpp"
 #include "ui/camera_settings_ui.hpp"
 #include "ui/main_dock_ui.hpp"
 #include "ui/menu_bar_ui.hpp"
@@ -34,6 +33,5 @@ namespace Prism::Systems {
         UI::MenuBarUI m_menuBarUI;
         UI::SceneHierarchyUI m_sceneHierarchyUI;
         UI::CameraSettingsUI m_cameraSettingsUI;
-        UI::CameraSelectionUI m_cameraSelectionUI;
     };
 } // namespace Prism::Systems

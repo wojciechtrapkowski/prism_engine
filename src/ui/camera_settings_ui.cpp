@@ -44,5 +44,52 @@ namespace Prism::UI {
 
 
         ImGui::End();
+
+        ImGui::Begin("Camera selection");
+
+        std::vector<CameraType> availableCameraTypes;
+
+        if (!registry.view<Components::FpsCameraControl>().empty()) {
+            availableCameraTypes.push_back(
+                {FPS_CAMERA_NAME,
+                 [](entt::registry &registry, entt::entity e) {
+                     return registry.all_of<Components::FpsCameraControl>(e);
+                 },
+                 [](entt::registry &registry) {
+                     auto fpsCameraView =
+                         registry.view<Components::FpsCameraControl>();
+                     auto fpsCameraEntity = fpsCameraView.front();
+                     registry.emplace<Components::Tags::ActiveCamera>(
+                         fpsCameraEntity);
+                 }});
+        }
+
+        if (availableCameraTypes.empty()) {
+            return;
+        }
+
+        const char *previewValue = availableCameraTypes.front().name;
+
+        if (ImGui::BeginCombo("Camera Type", previewValue)) {
+            for (int i = 0; i < availableCameraTypes.size(); ++i) {
+                bool isSelected = (availableCameraTypes[i].checkIfActive(
+                    registry, activeCameraEntity));
+
+                if (ImGui::Selectable(availableCameraTypes[i].name,
+                                      isSelected)) {
+                    registry.remove<Components::Tags::ActiveCamera>(
+                        activeCameraEntity);
+
+                    availableCameraTypes[i].makeActive(registry);
+                }
+
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::End();
     }
 } // namespace Prism::UI

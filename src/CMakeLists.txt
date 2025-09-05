@@ -19,18 +19,27 @@ add_subdirectory(utils)
 add_subdirectory(managers)
 add_subdirectory(ui)
 
+
+
+set(MOLLVK_LIB "/Users/wojtektrapkowski/VulkanSDK/1.4.321.0/macOS/lib/libvulkan.dylib")
+
 # Link required libraries
 target_link_libraries(PrismMain
     PRIVATE
-       ${PRISM_DEPENDENCIES}
+        ${Vulkan_LIBRARIES}
         Prism_Context
+        ${MOLLVK_LIB}
 )
 
+message(STATUS "PRISM_DEPENDENCIES_INCLUDE_DIRS = ${PRISM_DEPENDENCIES_INCLUDE_DIRS}")
+message(STATUS "PRISM_DEPENDENCIES = ${PRISM_DEPENDENCIES}")
 
 # Mac-specific configurations
 if(APPLE)
     target_link_libraries(PrismMain PRIVATE ${MAC_LIBRARIES})
 endif()
+
+target_include_directories(PrismMain PRIVATE ${PRISM_DEPENDENCIES_INCLUDE_DIRS})
 
 # Set the output directory
 set_target_properties(PrismMain

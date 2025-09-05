@@ -66,6 +66,7 @@
         "__config": "cpp",
         "any": "cpp",
         "cinttypes": "cpp",
-        "condition_variable": "cpp"
+        "condition_variable": "cpp",
+        "iterator": "cpp"
     }
 }

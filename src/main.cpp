@@ -3,7 +3,45 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <vulkan/vulkan.h>
+
 int main() {
+    VkResult result;
+
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "HelloVulkan";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "NoEngine";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_0;
+
+    // Required instance extensions
+    const char *extensions[] = {"VK_KHR_surface", "VK_MVK_macos_surface",
+                                "VK_KHR_portability_enumeration"};
+
+    // Instance create info
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+    createInfo.enabledExtensionCount = 3;
+    createInfo.ppEnabledExtensionNames = extensions;
+
+    // Enable portability enumeration flag
+    createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+
+    VkInstance instance;
+    result = vkCreateInstance(&createInfo, nullptr, &instance);
+    if (result != VK_SUCCESS) {
+        std::cerr << "Failed to create Vulkan instance! Error code: " << result
+                  << std::endl;
+        return -1;
+    }
+
+    std::cout << "Vulkan instance created successfully!" << std::endl;
+
+    vkDestroyInstance(instance, nullptr);
+
     try {
         Prism::Context::Context context;
         context.RunEngine();
