@@ -16,19 +16,30 @@ int main() {
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
-    // Required instance extensions
-    const char *extensions[] = {"VK_KHR_surface", "VK_MVK_macos_surface",
-                                "VK_KHR_portability_enumeration"};
-
-    // Instance create info
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
+
+#ifdef PLATFORM_MAC
+    // macOS / MoltenVK
+    const char *extensions[] = {
+        "VK_KHR_surface",
+        "VK_MVK_macos_surface",
+        "VK_KHR_portability_enumeration"
+    };
     createInfo.enabledExtensionCount = 3;
     createInfo.ppEnabledExtensionNames = extensions;
-
-    // Enable portability enumeration flag
     createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#else
+    // Windows / Linux
+    const char *extensions[] = {
+        "VK_KHR_surface",
+        // optionally "VK_KHR_win32_surface" on Windows
+    };
+    createInfo.enabledExtensionCount = 1;
+    createInfo.ppEnabledExtensionNames = extensions;
+    createInfo.flags = 0;
+#endif
 
     VkInstance instance;
     result = vkCreateInstance(&createInfo, nullptr, &instance);

@@ -8,6 +8,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(PRISM_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
+if(WIN32)
+    add_definitions(-DPLATFORM_WINDOWS)
+elseif(APPLE)
+    add_definitions(-DPLATFORM_MAC)
+endif()
+
 add_subdirectory(dependencies)
 add_subdirectory(src)
 
