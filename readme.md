@@ -1,3 +1,7 @@
+# Prism Engine
+
+TODO
+
 # Setting Up Vulkan Environment Variables
 
 To build and run this project correctly, you need to install the Vulkan SDK and configure the environment variables on your system.
@@ -41,4 +45,74 @@ First, **install the Vulkan SDK** from [LunarG Vulkan SDK](https://vulkan.lunarg
     ```**bash**
     source ~/.zshrc   # or source ~/.bash_profile
     ```
-      
+
+# Building the project
+
+## Windows
+
+On Windows the project includes a `setup.bat` script that prepares a `build` folder and generates a Visual Studio solution.
+
+1. Open PowerShell or Command Prompt.
+2. Change into the project root if necessary:
+   ```powershell
+   cd path\to\project
+   ```
+3. Run the setup script:
+   ```powershell
+   .\setup.bat
+   ```
+   - The script will generate a `build` directory and create a `.sln` file (Visual Studio solution) inside `build`.
+   - Wait for the script to finish. If it fails, check the console output for missing tools or permissions.
+
+4. Open the solution:
+   - In File Explorer, navigate to `build\` and double-click the generated `*.sln` file.
+   - Or from the command line:
+     ```powershell
+     start build\YourSolution.sln
+     ```
+5. Build and run inside Visual Studio:
+   - Select the configuration (Debug/Release) and platform (x86/x64) as appropriate.
+   - Build the solution (Build → Build Solution) and run (Debug → Start Debugging or Start Without Debugging).
+
+Notes:
+- If you need a clean rebuild, delete the `build` folder and re-run `setup.bat`.
+
+---
+
+## macOS
+
+On macOS the repository provides `build.sh` and `run.sh`.
+
+1. Open Terminal and change to the project root:
+   ```bash
+   cd /path/to/project
+   ```
+2. Make sure the scripts are executable (first time only):
+   ```bash
+   chmod +x ./build.sh ./run.sh
+   ```
+3. Build:
+   - Normal build:
+     ```bash
+     ./build.sh
+     ```
+   - Clean:
+     ```bash
+     ./build.sh --clean
+     ```
+     The `--clean` flag performs a full clean.
+  - Release build:
+     ```bash
+     ./build.sh --release
+     ```
+     The `--release` flag instructs the build script to produce optimized/release artifacts (instead of debug builds).
+4. Run:
+   ```bash
+   ./run.sh
+   ```
+   ```bash
+   ./run.sh --release
+   ```
+   `run.sh` will execute the produced binary (or start the app) using the artifacts in the `build` directory. Pass `--release` to run the artifacts produced by a `--release` build.
+
+---
