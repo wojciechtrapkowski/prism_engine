@@ -1,6 +1,6 @@
 # Prism Engine
 
-TODO
+First version of the engine was written using OpenGL. However I decided to move to Vulkan due to two reasons. Developing on macOS is very limited - currently it supports only up to version 4.1 of OpenGL. Second reason is that I like to have more control over what is happening, therefore Vulkan suits my needs more.
 
 # Setting Up Vulkan Environment Variables
 
