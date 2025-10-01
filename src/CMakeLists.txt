@@ -12,7 +12,6 @@ add_compile_definitions(GLFW_INCLUDE_NONE)
 # Add subdirectories
 add_subdirectory(context)
 add_subdirectory(loaders)
-# add_subdirectory(controllers)
 add_subdirectory(shaders)
 add_subdirectory(resources)
 add_subdirectory(systems)

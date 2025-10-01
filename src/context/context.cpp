@@ -1,6 +1,5 @@
 #include "context/context.hpp"
 
-#include "loaders/glad_loader.hpp"
 #include "loaders/imgui_loader.hpp"
 #include "loaders/mesh_loader.hpp"
 #include "loaders/vulkan_loader.hpp"

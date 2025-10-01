@@ -4,7 +4,6 @@ project(Prism_Loaders VERSION 1.0.0 LANGUAGES CXX)
 set(PRISM_LOADERS_LIBRARY_NAME Prism_Loaders)
 
 set(LOADERS_SOURCES
-    glad_loader.cpp
     imgui_loader.cpp
     mesh_loader.cpp
     window_loader.cpp
@@ -12,7 +11,6 @@ set(LOADERS_SOURCES
 )
 
 set(LOADERS_HEADERS
-    public/loaders/glad_loader.hpp
     public/loaders/imgui_loader.hpp
     public/loaders/mesh_loader.hpp
     public/loaders/window_loader.hpp
