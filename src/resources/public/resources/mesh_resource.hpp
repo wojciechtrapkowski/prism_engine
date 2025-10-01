@@ -1,14 +1,12 @@
 #pragma once
 
-#include <glad/glad.h>
-
-#include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
 
 #include <vector>
 
 #include "resources/resource.hpp"
+#include "resources/vulkan/vk_buffer_resource.hpp"
 
 namespace Prism::Resources {
     struct MeshResource : ResourceImpl<MeshResource> {
@@ -22,14 +20,9 @@ namespace Prism::Resources {
             uint32_t idx;
         };
 
-        struct MeshDescriptor {
-            std::vector<Vertex> vertices;
-            std::vector<Index> indices;
-        };
+        MeshResource(Resources::VkBufferResource<Vertex> vertexBuffer, Resources::VkBufferResource<Index> indexBuffer);
 
-        MeshResource(MeshDescriptor meshDescriptor);
-
-        ~MeshResource();
+        ~MeshResource() = default;
 
         MeshResource(MeshResource &other) = delete;
         MeshResource &operator=(MeshResource &other) = delete;
@@ -37,22 +30,15 @@ namespace Prism::Resources {
         MeshResource(MeshResource &&other);
         MeshResource &operator=(MeshResource &&other);
 
-        GLuint GetVertexArrayObject() const { return m_vertexArrayObject; }
+        Resources::VkBufferResource<Vertex> &GetVertexBuffer() { return vertexBuffer; }
 
-        size_t GetVertexCount() const { return m_vertexCount; }
-
-        size_t GetIndexCount() const { return m_indexCount; }
+        Resources::VkBufferResource<Index> &GetIndexBuffer() { return indexBuffer; }
 
         friend void swap(MeshResource &lhs, MeshResource &rhs) noexcept;
 
       private:
-        size_t m_vertexCount = 0;
-        GLuint m_vertexBuffer = 0;
-
-        size_t m_indexCount = 0;
-        GLuint m_indexBuffer = 0;
-
-        GLuint m_vertexArrayObject = 0;
+        Resources::VkBufferResource<Vertex> vertexBuffer = {};
+        Resources::VkBufferResource<Index> indexBuffer = {};
     };
 
 }; // namespace Prism::Resources

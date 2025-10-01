@@ -1,64 +1,39 @@
 #include "context/context.hpp"
 
+
 #include <iostream>
 #include <stdexcept>
 
-#include <vulkan/vulkan.h>
+#define GLFW_INCLUDE_VULKAN
+#include "GLFW/glfw3.h"
 
-int main() {
-    VkResult result;
+std::vector<const char *> getRequiredInstanceExtensions() {
+    uint32_t glfwExtensionCount = 0;
+    const char **glfwExtensions;
+    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "HelloVulkan";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "NoEngine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
+#ifdef DEBUG
+    extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+    extensions.push_back("VK_KHR_surface");
 
 #ifdef PLATFORM_MAC
-    // macOS / MoltenVK
-    const char *extensions[] = {
-        "VK_KHR_surface",
-        "VK_MVK_macos_surface",
-        "VK_KHR_portability_enumeration"
-    };
-    createInfo.enabledExtensionCount = 3;
-    createInfo.ppEnabledExtensionNames = extensions;
-    createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#else
-    // Windows / Linux
-    const char *extensions[] = {
-        "VK_KHR_surface",
-        // optionally "VK_KHR_win32_surface" on Windows
-    };
-    createInfo.enabledExtensionCount = 1;
-    createInfo.ppEnabledExtensionNames = extensions;
-    createInfo.flags = 0;
+    extensions.push_back("VK_MVK_macos_surface");
+    extensions.push_back("VK_KHR_portability_enumeration");
+    extensions.push_back("VK_KHR_get_physical_device_properties2");
 #endif
 
-    VkInstance instance;
-    result = vkCreateInstance(&createInfo, nullptr, &instance);
-    if (result != VK_SUCCESS) {
-        std::cerr << "Failed to create Vulkan instance! Error code: " << result
-                  << std::endl;
-        return -1;
-    }
+    return extensions;
+};
 
-    std::cout << "Vulkan instance created successfully!" << std::endl;
-
-    vkDestroyInstance(instance, nullptr);
-
+int main() {
     try {
         Prism::Context::Context context;
         context.RunEngine();
     } catch (const std::exception &e) {
         std::cerr << "Shader compilation error: " << e.what() << std::endl;
     }
-
     return 0;
 }

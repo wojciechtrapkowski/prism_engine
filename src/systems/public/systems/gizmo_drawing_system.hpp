@@ -1,10 +1,8 @@
 #pragma once
 
-#include "loaders/shader_loader.hpp"
-
 #include "resources/context_resources.hpp"
+#include "resources/render_target_resource.hpp"
 #include "resources/scene.hpp"
-#include "resources/shader_resource.hpp"
 
 #include "events/move_events.hpp"
 
@@ -22,9 +20,9 @@ namespace Prism::Systems {
 
         void Initialize();
 
-        void Update(float deltaTime, Resources::Scene &scene);
+        void Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene &scene);
 
-        void Render(float deltaTime, Resources::Scene &scene);
+        void Render(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene &scene, Resources::RenderTargetResource &renderTarget);
 
       private:
         void onKeyPressed(const Events::KeyPressEvent &event);

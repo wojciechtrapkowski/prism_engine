@@ -1,22 +1,14 @@
 #pragma once
 
-#include <memory>
+#include "resources/window_resource.hpp"
 
-#include <glad/glad.h>
+#include <memory>
 
 #include <GLFW/glfw3.h>
 
 namespace Prism::Loaders {
     struct WindowLoader {
-        struct GLFWwindowDeleter {
-            void operator()(GLFWwindow *window) {
-                if (window) {
-                    glfwDestroyWindow(window);
-                }
-            }
-        };
-
-        using result_type = std::unique_ptr<GLFWwindow, GLFWwindowDeleter>;
+        using result_type = Resources::WindowResource;
 
         WindowLoader() = default;
         ~WindowLoader() = default;

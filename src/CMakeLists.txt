@@ -1,9 +1,13 @@
-add_compile_definitions(
-    $<$<CONFIG:Debug>:DEBUG>
-    $<$<NOT:$<CONFIG:Debug>>:RELEASE>
-)
-
 add_executable(PrismMain main.cpp)
+
+# Mac-specific configurations
+if(APPLE)
+    target_link_libraries(PrismMain PRIVATE ${MAC_LIBRARIES})
+endif()
+
+include_directories(${PRISM_DEPENDENCIES_INCLUDE_DIRS})
+
+add_compile_definitions(GLFW_INCLUDE_NONE)
 
 # Add subdirectories
 add_subdirectory(context)
@@ -22,19 +26,12 @@ add_subdirectory(ui)
 # Link required libraries
 target_link_libraries(PrismMain
     PRIVATE
-        ${Vulkan}
         Prism_Context
 )
 
 message(STATUS "PRISM_DEPENDENCIES_INCLUDE_DIRS = ${PRISM_DEPENDENCIES_INCLUDE_DIRS}")
 message(STATUS "PRISM_DEPENDENCIES = ${PRISM_DEPENDENCIES}")
 
-# Mac-specific configurations
-if(APPLE)
-    target_link_libraries(PrismMain PRIVATE ${MAC_LIBRARIES})
-endif()
-
-target_include_directories(PrismMain PRIVATE ${PRISM_DEPENDENCIES_INCLUDE_DIRS})
 
 # Set the output directory
 set_target_properties(PrismMain

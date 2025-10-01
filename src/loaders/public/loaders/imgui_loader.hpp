@@ -6,11 +6,12 @@
 #include <utility>
 
 #include "resources/imgui_resource.hpp"
+#include "resources/vulkan_resource.hpp"
+#include "resources/window_resource.hpp"
 
 namespace Prism::Loaders {
     struct ImGuiLoader {
-        using result_type =
-            std::optional<std::unique_ptr<Resources::ImGuiResource>>;
+        using result_type = std::optional<Resources::ImGuiResource>;
 
         ImGuiLoader() = default;
         ~ImGuiLoader() = default;
@@ -21,6 +22,6 @@ namespace Prism::Loaders {
         ImGuiLoader(ImGuiLoader &other) = delete;
         ImGuiLoader &operator=(ImGuiLoader &) = delete;
 
-        result_type operator()(GLFWwindow *window) const;
+        result_type operator()(Resources::WindowResource &windowResource, Resources::VulkanResource &vulkanResource) const;
     };
 }; // namespace Prism::Loaders

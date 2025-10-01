@@ -15,6 +15,12 @@ elseif(APPLE)
 endif()
 
 add_subdirectory(dependencies)
+
+add_compile_definitions(
+    $<$<CONFIG:Debug>:DEBUG>
+    $<$<NOT:$<CONFIG:Debug>>:RELEASE>
+)
+
 add_subdirectory(src)
 
 message(STATUS "Prism Graphics Engine configured successfully!")

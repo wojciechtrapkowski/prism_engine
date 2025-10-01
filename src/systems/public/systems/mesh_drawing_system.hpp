@@ -1,16 +1,14 @@
 #pragma once
 
-#include "loaders/shader_loader.hpp"
-
 #include "resources/context_resources.hpp"
+#include "resources/render_target_resource.hpp"
 #include "resources/scene.hpp"
-#include "resources/shader_resource.hpp"
 
 namespace Prism::Systems {
     class MeshDrawingSystem {
       public:
         MeshDrawingSystem(Resources::ContextResources &contextResources);
-        ~MeshDrawingSystem() = default;
+        ~MeshDrawingSystem();
 
         MeshDrawingSystem(MeshDrawingSystem &other) = delete;
         MeshDrawingSystem &operator=(MeshDrawingSystem &other) = delete;
@@ -20,13 +18,17 @@ namespace Prism::Systems {
 
         void Initialize();
 
-        void Update(float deltaTime, Resources::Scene &scene);
+        void Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene &scene);
 
-        void Render(float deltaTime, Resources::Scene &scene);
+        void Render(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene &scene, Resources::RenderTargetResource &renderTarget);
 
       private:
         Resources::ContextResources &m_contextResources;
 
-        std::unique_ptr<Resources::ShaderResource> m_shaderResource;
+        VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+        VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+        std::vector<VkDescriptorSet> descriptorSets = {};
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+        VkPipeline pipeline = VK_NULL_HANDLE;
     };
 }; // namespace Prism::Systems

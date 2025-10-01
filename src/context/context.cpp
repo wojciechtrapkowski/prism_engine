@@ -3,7 +3,7 @@
 #include "loaders/glad_loader.hpp"
 #include "loaders/imgui_loader.hpp"
 #include "loaders/mesh_loader.hpp"
-#include "loaders/shader_loader.hpp"
+#include "loaders/vulkan_loader.hpp"
 #include "loaders/window_loader.hpp"
 
 #include "systems/camera_creation_system.hpp"
@@ -11,82 +11,90 @@
 #include "systems/event_poll_system.hpp"
 #include "systems/fps_motion_control_system.hpp"
 #include "systems/input_control_system.hpp"
-
-#include "events/window_resize_event.hpp"
+#include "systems/window_resize_system.hpp"
 
 #include "managers/scene_draw_systems_manager.hpp"
 #include "managers/scene_update_systems_manager.hpp"
 
+#include "resources/context_resources.hpp"
 #include "resources/scene.hpp"
+
 
 #include <format>
 #include <iostream>
 
 namespace Prism::Context {
     namespace {
-        void printDebugInfo() {
-            const GLubyte *version = glGetString(GL_VERSION);
-            std::cout << "OpenGL Version: " << version << std::endl;
-        }
-
         struct FPSCounter {
             size_t frames = 0;
             double lastTime = glfwGetTime();
         };
+
+        Resources::ContextResources createContextResources() {
+            Loaders::WindowLoader windowLoader;
+            auto windowResource = windowLoader();
+
+            Loaders::VulkanLoader vulkanLoader;
+            auto vulkanResource = vulkanLoader(windowResource);
+
+            if (!vulkanResource) {
+                throw std::runtime_error("Couldn't load Vulkan!");
+            }
+
+            Loaders::ImGuiLoader imGuiLoader;
+            auto imguiResource = imGuiLoader(windowResource, vulkanResource.value());
+
+            if (!imguiResource) {
+                throw std::runtime_error("Couldn't load imgui!");
+            }
+
+            return {std::move(windowResource), std::move(*vulkanResource), std::move(*imguiResource)};
+        }
     } // namespace
 
+    Context::Context() : m_contextResources{createContextResources()} {
+        m_windowCloseEventConnection = m_contextResources.GetDispatcher().sink<Events::WindowCloseEvent>().connect<&Context::onWindowClose>(this);
+    }
+
     void Context::RunEngine() {
-        Loaders::WindowLoader windowLoader;
-
-        {
-            auto window = windowLoader();
-            m_contextResources.window = std::move(window);
-        }
-
-        auto *window = m_contextResources.window.get();
-
-        Loaders::GladLoader gladLoader;
-        gladLoader();
-
-        Loaders::ImGuiLoader imGuiLoader;
-        auto imguiResource = imGuiLoader(window);
-
         Systems::EventPollSystem eventPollSystem{m_contextResources};
 
         Systems::InputControlSystem inputControlSystem{m_contextResources};
 
-        Managers::SceneDrawSystemsManager sceneDrawSystemsManager{
-            m_contextResources};
+        Systems::WindowResizeSystem windowResizeSystem{m_contextResources};
 
-        Managers::SceneUpdateSystemsManager sceneUpdateSystemsManager{
-            m_contextResources};
+        Managers::SceneDrawSystemsManager sceneDrawSystemsManager{m_contextResources};
 
-        Loaders::MeshLoader meshLoader{};
+        Managers::SceneUpdateSystemsManager sceneUpdateSystemsManager{m_contextResources};
 
         Resources::Scene scene{};
 
-        auto backpackModelOpt = meshLoader("backpack.obj");
+        Loaders::MeshLoader meshLoader{};
+
+        Resources::VkStagingBufferResource stagingBuffer{m_contextResources.GetVulkanResource().GetVmaAllocator()};
+
+        auto backpackModelOpt = meshLoader(m_contextResources.GetVulkanResource(), stagingBuffer, "backpack.obj");
         if (!backpackModelOpt) {
             std::cerr << "Couldn't load backpack model!" << std::endl;
         } else {
             auto &backpackModel = *backpackModelOpt;
-            auto backpackId =
-                std::hash<const char *>{}("MeshResources/Backpack");
+            auto backpackId = std::hash<const char *>{}("MeshResources/Backpack");
             scene.AddNewMesh(backpackId, "Backpack", std::move(backpackModel));
 
             std::cout << "Loaded backpack model!" << std::endl;
         }
 
-        auto cubeModelOpt = meshLoader("cube.obj");
-        if (!cubeModelOpt) {
-            std::cerr << "Couldn't load cube model!" << std::endl;
-        } else {
-            auto &cubeModel = *cubeModelOpt;
-            auto cubeId = std::hash<const char *>{}("MeshResources/Cube");
-            scene.AddNewMesh(cubeId, "Cube", std::move(cubeModel));
-        }
+        // auto cubeModelOpt = meshLoader("cube.obj");
+        // if (!cubeModelOpt) {
+        //     std::cerr << "Couldn't load cube model!" << std::endl;
+        // } else {
+        //     auto &cubeModel = *cubeModelOpt;
+        //     auto cubeId = std::hash<const char *>{}("MeshResources/Cube");
+        //     scene.AddNewMesh(cubeId, "Cube", std::move(cubeModel));
+        // }
 
         eventPollSystem.Initialize();
+
         inputControlSystem.Initialize();
 
         sceneUpdateSystemsManager.Initialize();
@@ -96,40 +104,41 @@ namespace Prism::Context {
         float deltaTime = 0.0f;
         float lastFrameTime = 0.0f;
 
-#ifdef DEBUG
-        printDebugInfo();
         FPSCounter fpsCounter{};
-#endif
 
-        while (!glfwWindowShouldClose(window)) {
-            float currentTime = glfwGetTime();
-            deltaTime = currentTime - lastFrameTime;
-            lastFrameTime = currentTime;
+        // Scope for cleanup
+        {
+            auto &windowResource = m_contextResources.GetWindowResource();
+            auto &vulkanResource = m_contextResources.GetVulkanResource();
 
-            eventPollSystem.Update(deltaTime);
+            while (m_isRunning) {
+                float currentTime = glfwGetTime();
+                deltaTime = currentTime - lastFrameTime;
+                lastFrameTime = currentTime;
 
-            inputControlSystem.Update(deltaTime);
+                inputControlSystem.Update(deltaTime);
 
-            sceneUpdateSystemsManager.Update(deltaTime, scene);
+                eventPollSystem.Update(deltaTime);
 
-            sceneDrawSystemsManager.Update(deltaTime, scene);
+                windowResizeSystem.Update(deltaTime);
 
-            sceneDrawSystemsManager.Render(deltaTime, scene);
+                sceneUpdateSystemsManager.Update(deltaTime, scene);
 
+                sceneDrawSystemsManager.Update(deltaTime, scene, stagingBuffer);
 
-#ifdef DEBUG
-            // Display FPS counter every second
-            fpsCounter.frames++;
-            if (currentTime - fpsCounter.lastTime >= 1.0) {
-                std::string title = std::format("FPS: {}", fpsCounter.frames);
-                glfwSetWindowTitle(window, title.c_str());
-                fpsCounter.frames = 0;
-                fpsCounter.lastTime = currentTime;
+                // Display FPS counter every second
+                fpsCounter.frames++;
+                if (currentTime - fpsCounter.lastTime >= 1.0) {
+                    std::string title = std::format("FPS: {}", fpsCounter.frames);
+                    glfwSetWindowTitle(windowResource.GetWindow(), title.c_str());
+                    fpsCounter.frames = 0;
+                    fpsCounter.lastTime = currentTime;
+                }
             }
-#endif
+
+            vkDeviceWaitIdle(m_contextResources.GetVulkanResource().GetDevice());
         }
-
-
-        glfwTerminate();
     }
+
+    void Context::onWindowClose(Events::WindowCloseEvent &event) { m_isRunning = false; }
 }; // namespace Prism::Context

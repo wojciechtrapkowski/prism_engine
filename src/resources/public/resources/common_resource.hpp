@@ -4,27 +4,16 @@
 
 #include <glm/glm.hpp>
 
-#include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
 
 namespace Prism::Resources {
-    struct CommonResource : ResourceImpl<CommonResource> {
-        CommonResource() = default;
-        CommonResource(GLuint uboHandle);
-        ~CommonResource();
 
-        CommonResource(CommonResource &other) = delete;
-        CommonResource &operator=(CommonResource &other) = delete;
+    struct CommonResource {
+        glm::mat4 view{};
+        glm::mat4 projection{};
+        glm::vec4 cameraPosition{};
 
-        CommonResource(CommonResource &&other);
-        CommonResource &operator=(CommonResource &&other);
-
-        GLuint GetUboHandle() const { return m_uboHandle; }
-
-        static constexpr GLuint COMMON_UBO_BINDING_POINT = 0;
-
-      private:
-        GLuint m_uboHandle;
+        inline static const Resources::Resource::ID UNIFORM_BUFFER_ID = std::hash<std::string_view>{}("CommonUniformUpdateSystem/UniformBufferResource");
     };
 }; // namespace Prism::Resources

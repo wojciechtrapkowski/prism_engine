@@ -1,15 +1,16 @@
 #pragma once
 
 #include "resources/mesh_resource.hpp"
+#include "resources/vulkan/vk_staging_buffer_resource.hpp"
+#include "resources/vulkan_resource.hpp"
 
 #include <optional>
-#include <utility>
 #include <string>
+#include <utility>
 
 namespace Prism::Loaders {
     struct MeshLoader {
-        using result_type =
-            std::optional<std::unique_ptr<Resources::MeshResource>>;
+        using result_type = std::optional<std::unique_ptr<Resources::MeshResource>>;
 
         MeshLoader() = default;
         ~MeshLoader() = default;
@@ -20,6 +21,6 @@ namespace Prism::Loaders {
         MeshLoader(MeshLoader &other) = delete;
         MeshLoader &operator=(MeshLoader &) = delete;
 
-        result_type operator()(const std::string &path) const;
+        result_type operator()(Resources::VulkanResource &vulkanResource, Resources::VkStagingBufferResource &stagingBuffer, const std::string &path) const;
     };
 }; // namespace Prism::Loaders

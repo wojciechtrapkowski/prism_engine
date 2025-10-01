@@ -1,6 +1,5 @@
 #pragma once
 
-#include <glad/glad.h>
 
 #include <GLFW/glfw3.h>
 
@@ -16,12 +15,10 @@ namespace Prism::Systems {
         ~FpsMotionControlSystem() = default;
 
         FpsMotionControlSystem(FpsMotionControlSystem &other) = delete;
-        FpsMotionControlSystem &
-        operator=(FpsMotionControlSystem &other) = delete;
+        FpsMotionControlSystem &operator=(FpsMotionControlSystem &other) = delete;
 
         FpsMotionControlSystem(FpsMotionControlSystem &&other) = delete;
-        FpsMotionControlSystem &
-        operator=(FpsMotionControlSystem &&other) = delete;
+        FpsMotionControlSystem &operator=(FpsMotionControlSystem &&other) = delete;
 
         void Initialize();
 
@@ -40,8 +37,7 @@ namespace Prism::Systems {
 
         std::unordered_map<Events::Keys, Events::InputAction> m_keyToStateMap;
 
-        std::unordered_map<Events::MouseButton, Events::InputAction>
-            m_mouseButtonToStateMap;
+        std::unordered_map<Events::MouseButton, Events::InputAction> m_mouseButtonToStateMap;
 
 
         std::pair<double, double> m_mousePosition = {};

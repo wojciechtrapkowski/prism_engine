@@ -6,9 +6,11 @@
 
 #include <entt/entt.hpp>
 
+#include "events/app_events.hpp"
+
 namespace Prism::Context {
     struct Context {
-        Context() = default;
+        Context();
         ~Context() = default;
 
         Context(Context &&other) = delete;
@@ -20,7 +22,13 @@ namespace Prism::Context {
         void RunEngine();
 
       private:
+        void onWindowClose(Events::WindowCloseEvent &event);
+
         Resources::ContextResources m_contextResources;
+
+        bool m_isRunning = true;
+        entt::scoped_connection m_windowCloseEventConnection;
+
         entt::registry m_registry;
     };
 }; // namespace Prism::Context

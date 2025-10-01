@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resources/context_resources.hpp"
+#include "resources/render_target_resource.hpp"
 #include "resources/scene.hpp"
 
 namespace Prism::Systems {
@@ -17,9 +18,9 @@ namespace Prism::Systems {
 
         void Initialize();
 
-        void Update(float deltaTime, Resources::Scene &scene);
+        void Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene &scene);
 
-        void Render(float deltaTime, Resources::Scene &scene);
+        void Render(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene &scene, Resources::RenderTargetResource &renderTarget);
 
       private:
         Resources::ContextResources &m_contextResources;

@@ -67,6 +67,8 @@
         "any": "cpp",
         "cinttypes": "cpp",
         "condition_variable": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "__availability": "cpp",
+        "shared_mutex": "cpp"
     }
 }
