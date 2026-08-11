@@ -1,4 +1,4 @@
-#include "systems/subsystems/rasterized_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp"
 
 #include "components/mesh.hpp"
 #include "components/transform.hpp"

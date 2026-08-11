@@ -4,8 +4,8 @@
 #include <iostream>
 #include <vector>
 
-#include "systems/subsystems/rasterized_geometry_drawing_subsystem.hpp"
-#include "systems/subsystems/raytraced_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp"
 
 #include "components/systems_settings.hpp"
 #include "components/mesh.hpp"
@@ -17,7 +17,7 @@ namespace Prism::Systems
 {
     namespace
     {
-        bool isSceneEmpty(const Resources::Scene& scene)
+        bool isSceneEmpty(Resources::Scene& scene)
         {
             auto& registry = scene.GetRegistry();
 
