@@ -55,8 +55,9 @@ namespace Prism::Managers
     } // namespace
 
     SceneDrawSystemsManager::SceneDrawSystemsManager(Resources::ContextResources& contextResources) :
-        _contextResources(contextResources), _meshLoadingSystem{contextResources}, _screenClearingSystem{contextResources},
-        _meshDrawingSystem{contextResources}, _uiDrawingSystem{contextResources}, _presentSystem{contextResources}, _gizmoDrawingSystem{contextResources}
+        _contextResources(contextResources), _meshLoadingSystem{contextResources}, _aabbDrawingSystem{contextResources},
+        _screenClearingSystem{contextResources}, _meshDrawingSystem{contextResources}, _uiDrawingSystem{contextResources}, _presentSystem{contextResources},
+        _gizmoDrawingSystem{contextResources}
     {
         auto& vulkanResource           = _contextResources.GetVulkanResource();
         auto  device                   = vulkanResource.GetDevice();
@@ -124,6 +125,7 @@ namespace Prism::Managers
 
             _screenClearingSystem.Update(deltaTime, commandBuffersScope.GetNextCommandBuffer(), currentStagingBuffer, scene);
             _meshDrawingSystem.Update(deltaTime, commandBuffersScope.GetNextCommandBuffer(), currentStagingBuffer, scene);
+            _aabbDrawingSystem.Update(deltaTime, commandBuffersScope.GetNextCommandBuffer(), currentStagingBuffer, scene);
             _uiDrawingSystem.Update(deltaTime, commandBuffersScope.GetNextCommandBuffer(), currentStagingBuffer, scene);
             _gizmoDrawingSystem.Update(deltaTime, commandBuffersScope.GetNextCommandBuffer(), currentStagingBuffer, scene);
             _presentSystem.Update(deltaTime, commandBuffersScope.GetNextCommandBuffer(), currentStagingBuffer, scene);
@@ -149,6 +151,7 @@ namespace Prism::Managers
 
             _screenClearingSystem.Render(deltaTime, commandBuffersScope.GetNextCommandBuffer(), scene, renderTarget);
             _meshDrawingSystem.Render(deltaTime, commandBuffersScope.GetNextCommandBuffer(), scene, renderTarget);
+            _aabbDrawingSystem.Render(deltaTime, commandBuffersScope.GetNextCommandBuffer(), scene, renderTarget);
             _uiDrawingSystem.Render(deltaTime, commandBuffersScope.GetNextCommandBuffer(), scene, renderTarget);
             _gizmoDrawingSystem.Render(deltaTime, commandBuffersScope.GetNextCommandBuffer(), scene, renderTarget);
             _presentSystem.Render(deltaTime, commandBuffersScope.GetNextCommandBuffer(), scene, renderTarget);

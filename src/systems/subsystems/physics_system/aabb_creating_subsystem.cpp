@@ -2,8 +2,12 @@
 
 #include "components/mesh.hpp"
 #include "components/aabb.hpp"
+#include "components/transform.hpp"
 
 #include "resources/mesh_resource.hpp"
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include "glm/gtx/matrix_decompose.hpp"
 
 namespace Prism::Systems::Subsystems::PhysicsSystem
 {
@@ -15,6 +19,27 @@ namespace Prism::Systems::Subsystems::PhysicsSystem
 
         auto& meshStorage = scene.GetMeshStorage();
 
+        // Update existing AABBs
+        auto aabbView = registry.view<Components::AABB, Components::Transform>();
+        for (auto&& [entity, aabbComponent, transformComponent] : aabbView.each()) {
+            auto& transform = transformComponent.transform;
+
+            // Make sure we don't multiply by rotation.
+            auto scale       = glm::vec3{glm::length(transform[0]), glm::length(transform[1]), glm::length(transform[2])};
+            auto translation = glm::vec3(transform[3]);
+
+            glm::mat4 transformWithoutRotation{1.0f};
+            transformWithoutRotation = glm::translate(transformWithoutRotation, translation);
+            transformWithoutRotation = glm::scale(transformWithoutRotation, scale);
+
+            auto& lower = aabbComponent.lower;
+            auto& upper = aabbComponent.upper;
+
+            lower = transformWithoutRotation * aabbComponent.originalLower;
+            upper = transformWithoutRotation * aabbComponent.originalUpper;
+        }
+
+        // Create new AABBs
         auto meshView = registry.view<Components::Mesh>(entt::exclude<Components::AABB>);
 
         for (auto&& [entity, meshComponent] : meshView.each()) {
@@ -36,13 +61,15 @@ namespace Prism::Systems::Subsystems::PhysicsSystem
                 aabbLower.x = std::min(aabbLower.x, vertex.position.x);
                 aabbLower.y = std::min(aabbLower.y, vertex.position.y);
                 aabbLower.z = std::min(aabbLower.z, vertex.position.z);
+                aabbLower.w = 1.0f;
 
                 aabbUpper.x = std::max(aabbUpper.x, vertex.position.x);
                 aabbUpper.y = std::max(aabbUpper.y, vertex.position.y);
                 aabbUpper.z = std::max(aabbUpper.z, vertex.position.z);
+                aabbUpper.w = 1.0f;
             }
 
-            registry.emplace<Components::AABB>(entity, aabbLower, aabbUpper);
+            registry.emplace<Components::AABB>(entity, aabbLower, aabbUpper, aabbLower, aabbUpper);
         }
     }
 } // namespace Prism::Systems::Subsystems::PhysicsSystem

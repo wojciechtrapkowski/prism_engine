@@ -19,6 +19,7 @@ set(SYSTEMS_SOURCES
     frame_swap_system.cpp
     mesh_loading_system.cpp
     physics_system.cpp
+    aabb_drawing_system.cpp
 
     subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.cpp
     subsystems/mesh_drawing_system/raytraced_geometry_drawing_system.cpp
@@ -43,6 +44,7 @@ set(SYSTEMS_HEADERS
     public/systems/frame_swap_system.hpp
     public/systems/mesh_loading_system.hpp
     public/systems/physics_system.hpp
+    public/systems/aabb_drawing_system.hpp
 
     public/systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp
     public/systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp
@@ -65,6 +67,7 @@ add_dependencies(
         Prism_Loaders
         Prism_Events
         Prism_Components
+        Prism_Assets
         Prism_UI
 )
 
@@ -77,6 +80,7 @@ target_link_libraries(${PRISM_SYSTEMS_LIBRARY_NAME}
         Prism_Events
         Prism_Components
         Prism_Utils
+        Prism_Assets
         Prism_UI
         Prism_Shaders
         volk
