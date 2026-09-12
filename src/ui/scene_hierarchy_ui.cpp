@@ -7,6 +7,8 @@
 #include "components/tags.hpp"
 #include "components/transform.hpp"
 #include "components/name.hpp"
+#include "components/rigid_body.hpp"
+#include "components/aabb.hpp"
 
 #include <format>
 
@@ -135,6 +137,115 @@ namespace Prism::UI
                 ImGui::TreePop();
             }
         }
+        void renderStaticRigidBodyComponent(entt::registry& registry, entt::entity entity)
+        {
+            if (!registry.all_of<Components::StaticRigidBody>(entity))
+                return;
+
+            auto isOpened = ImGui::TreeNode("Static Rigid body");
+
+            ImGui::OpenPopupOnItemClick("##StaticRigidBodyContext", ImGuiPopupFlags_MouseButtonRight);
+            if (ImGui::BeginPopup("##StaticRigidBodyContext")) {
+                if (ImGui::MenuItem("Remove static rigid body")) {
+                    registry.remove<Components::StaticRigidBody>(entity);
+                }
+                ImGui::EndPopup();
+            }
+
+            if (isOpened) {
+                // Because user could delete static rigid body component, we need to check if it still exists.
+                auto staticRigidBodyPtr = registry.try_get<Components::StaticRigidBody>(entity);
+                if (!staticRigidBodyPtr) {
+                    ImGui::TreePop();
+                    return;
+                }
+
+                ImGui::TreePop();
+            }
+        }
+
+        void renderDynamicRigidBodyComponent(entt::registry& registry, entt::entity entity)
+        {
+            if (!registry.all_of<Components::DynamicRigidBody>(entity))
+                return;
+
+            auto isOpened = ImGui::TreeNode("Dynamic Rigid body");
+
+            ImGui::OpenPopupOnItemClick("##DynamicRigidBodyContext", ImGuiPopupFlags_MouseButtonRight);
+            if (ImGui::BeginPopup("##DynamicRigidBodyContext")) {
+                if (ImGui::MenuItem("Remove dynamic rigid body")) {
+                    registry.remove<Components::DynamicRigidBody>(entity);
+                }
+                ImGui::EndPopup();
+            }
+
+            if (isOpened) {
+                // Because user could delete dynamic rigid body component, we need to check if it still exists.
+                auto dynamicRigidBodyPtr = registry.try_get<Components::DynamicRigidBody>(entity);
+                if (!dynamicRigidBodyPtr) {
+                    ImGui::TreePop();
+                    return;
+                }
+
+                ImGui::TreePop();
+            }
+        }
+
+        void renderAABBComponent(entt::registry& registry, entt::entity entity)
+        {
+            if (!registry.all_of<Components::AABB>(entity))
+                return;
+
+            auto isOpened = ImGui::TreeNode("AABB");
+
+            ImGui::OpenPopupOnItemClick("##AABBContext", ImGuiPopupFlags_MouseButtonRight);
+            if (ImGui::BeginPopup("##AABBContext")) {
+                if (ImGui::MenuItem("Remove aabb")) {
+                    registry.remove<Components::AABB>(entity);
+                }
+                ImGui::EndPopup();
+            }
+
+            if (isOpened) {
+                // Because user could delete aabb component, we need to check if it still exists.
+                auto aabbPtr = registry.try_get<Components::AABB>(entity);
+                if (!aabbPtr) {
+                    ImGui::TreePop();
+                    return;
+                }
+                auto& aabbLower = aabbPtr->lower;
+                auto& aabbUpper = aabbPtr->upper;
+
+                if (ImGui::BeginTable("AABBData", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                    ImGui::TableSetupColumn("X");
+                    ImGui::TableSetupColumn("Y");
+                    ImGui::TableSetupColumn("Z");
+                    ImGui::TableHeadersRow();
+
+                    ImGui::TableNextRow();
+
+                    // Lower
+                    for (int i = 0; i < 3; i++) {
+                        ImGui::TableSetColumnIndex(i);
+                        std::string label = "##L_" + std::to_string(i);
+                        ImGui::InputFloat(label.c_str(), &aabbLower[i], 0.1f, 1.0f, "%.3f");
+                    }
+
+                    ImGui::TableNextRow();
+
+                    // Upper
+                    for (int i = 0; i < 3; i++) {
+                        ImGui::TableSetColumnIndex(i);
+                        std::string label = "##M_" + std::to_string(i);
+                        ImGui::InputFloat(label.c_str(), &aabbUpper[i], 0.1f, 1.0f, "%.3f");
+                    }
+
+                    ImGui::EndTable();
+                }
+
+                ImGui::TreePop();
+            }
+        }
 
         void renderNodeContextMenu(entt::registry& registry, entt::entity entity)
         {
@@ -149,6 +260,23 @@ namespace Prism::UI
                     }
                     if (ImGui::MenuItem("Mesh")) {
                         registry.emplace_or_replace<Components::Mesh>(entity);
+                    }
+                    if (ImGui::BeginMenu("Rigid body")) {
+                        // We can't have both bodies.
+                        if (ImGui::MenuItem("Dynamic")) {
+                            if (registry.all_of<Components::StaticRigidBody>(entity)) {
+                                registry.remove<Components::StaticRigidBody>(entity);
+                            }
+                            registry.emplace_or_replace<Components::DynamicRigidBody>(entity);
+                        }
+                        if (ImGui::MenuItem("Static")) {
+                            if (registry.all_of<Components::DynamicRigidBody>(entity)) {
+                                registry.remove<Components::DynamicRigidBody>(entity);
+                            }
+                            registry.emplace_or_replace<Components::StaticRigidBody>(entity);
+                        }
+
+                        ImGui::EndMenu();
                     }
                     ImGui::EndMenu();
                 }
@@ -266,6 +394,9 @@ namespace Prism::UI
             if (isOpened) {
                 renderTransformComponent(registry, entity);
                 renderMeshComponent(availableMeshResources, registry, entity);
+                renderStaticRigidBodyComponent(registry, entity);
+                renderDynamicRigidBodyComponent(registry, entity);
+                renderAABBComponent(registry, entity);
 
                 ImGui::TreePop();
             }

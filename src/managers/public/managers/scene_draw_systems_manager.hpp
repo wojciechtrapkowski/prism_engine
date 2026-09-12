@@ -4,6 +4,7 @@
 
 #include "systems/gizmo_drawing_system.hpp"
 #include "systems/mesh_drawing_system.hpp"
+#include "systems/aabb_drawing_system.hpp"
 #include "systems/present_system.hpp"
 #include "systems/screen_clearing_system.hpp"
 #include "systems/ui_drawing_system.hpp"
@@ -37,6 +38,7 @@ namespace Prism::Managers
         Resources::ContextResources& _contextResources;
 
         Systems::MeshLoadingSystem    _meshLoadingSystem;
+        Systems::AABBDrawingSystem    _aabbDrawingSystem;
         Systems::ScreenClearingSystem _screenClearingSystem;
         Systems::MeshDrawingSystem    _meshDrawingSystem;
         Systems::GizmoDrawingSystem   _gizmoDrawingSystem;

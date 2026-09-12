@@ -18,9 +18,15 @@ set(SYSTEMS_SOURCES
     mesh_drawing_system.cpp
     frame_swap_system.cpp
     mesh_loading_system.cpp
-    
-    subsystems/rasterized_geometry_drawing_subsystem.cpp
-    subsystems/raytraced_geometry_drawing_system.cpp
+    physics_system.cpp
+    aabb_drawing_system.cpp
+
+    subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.cpp
+    subsystems/mesh_drawing_system/raytraced_geometry_drawing_system.cpp
+
+    subsystems/physics_system/gravity_applying_subsystem.cpp
+    subsystems/physics_system/aabb_creating_subsystem.cpp
+    subsystems/physics_system/collision_resolving_subsystem.cpp
 )
 
 set(SYSTEMS_HEADERS
@@ -37,9 +43,15 @@ set(SYSTEMS_HEADERS
     public/systems/mesh_drawing_system.hpp
     public/systems/frame_swap_system.hpp
     public/systems/mesh_loading_system.hpp
+    public/systems/physics_system.hpp
+    public/systems/aabb_drawing_system.hpp
 
-    public/systems/subsystems/rasterized_geometry_drawing_subsystem.hpp
-    public/systems/subsystems/raytraced_geometry_drawing_subsystem.hpp
+    public/systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp
+    public/systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp
+    
+    public/systems/subsystems/physics_system/gravity_applying_subsystem.hpp
+    public/systems/subsystems/physics_system/aabb_creating_subsystem.hpp
+    public/systems/subsystems/physics_system/collision_resolving_subsystem.hpp
 )
 
 add_library(${PRISM_SYSTEMS_LIBRARY_NAME} STATIC
@@ -55,6 +67,7 @@ add_dependencies(
         Prism_Loaders
         Prism_Events
         Prism_Components
+        Prism_Assets
         Prism_UI
 )
 
@@ -67,6 +80,7 @@ target_link_libraries(${PRISM_SYSTEMS_LIBRARY_NAME}
         Prism_Events
         Prism_Components
         Prism_Utils
+        Prism_Assets
         Prism_UI
         Prism_Shaders
         volk
