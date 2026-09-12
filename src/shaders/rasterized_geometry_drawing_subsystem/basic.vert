@@ -1,5 +1,9 @@
 #version 450
 
+#extension GL_GOOGLE_include_directive : require
+
+#include "push_constants.glsl"
+
 layout(set = 0, binding = 0) uniform CommonUniforms
 {
     mat4 view;
@@ -10,10 +14,8 @@ commonUniforms;
 
 layout(push_constant) uniform PushConstants
 {
-    mat4 model;
-    int  textureId;
-}
-pushConstants;
+    VertexShaderPushConstants pushConstants;
+};
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
