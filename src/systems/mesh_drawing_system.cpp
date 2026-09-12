@@ -61,7 +61,7 @@ namespace Prism::Systems
             return;
         }
 
-        _rasterizedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene);
+        _rasterizedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene, stagingBuffer);
         _raytracedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene, stagingBuffer);
 
         vkEndCommandBuffer(commandBuffer);

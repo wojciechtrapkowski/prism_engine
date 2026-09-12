@@ -9,6 +9,7 @@
 #include "components/name.hpp"
 #include "components/rigid_body.hpp"
 #include "components/aabb.hpp"
+#include "components/light.hpp"
 
 #include <format>
 
@@ -137,6 +138,36 @@ namespace Prism::UI
                 ImGui::TreePop();
             }
         }
+
+        void renderLightComponent(entt::registry& registry, entt::entity entity)
+        {
+            if (!registry.all_of<Components::Light>(entity))
+                return;
+
+            auto isOpened = ImGui::TreeNode("Light");
+
+            ImGui::OpenPopupOnItemClick("##LightContext", ImGuiPopupFlags_MouseButtonRight);
+            if (ImGui::BeginPopup("##LightContext")) {
+                if (ImGui::MenuItem("Remove light")) {
+                    registry.remove<Components::Light>(entity);
+                }
+                ImGui::EndPopup();
+            }
+
+            if (isOpened) {
+                // Because user could delete Light component, we need to check if it still exists.
+                auto lightPtr = registry.try_get<Components::Light>(entity);
+                if (!lightPtr) {
+                    ImGui::TreePop();
+                    return;
+                }
+                auto& light = *lightPtr;
+
+                ImGui::SliderFloat("Set strength", &light.strength, 0.0f, 10.0f);
+
+                ImGui::TreePop();
+            }
+        }
         void renderStaticRigidBodyComponent(entt::registry& registry, entt::entity entity)
         {
             if (!registry.all_of<Components::StaticRigidBody>(entity))
@@ -260,6 +291,9 @@ namespace Prism::UI
                     }
                     if (ImGui::MenuItem("Mesh")) {
                         registry.emplace_or_replace<Components::Mesh>(entity);
+                    }
+                    if (ImGui::MenuItem("Light")) {
+                        registry.emplace_or_replace<Components::Light>(entity);
                     }
                     if (ImGui::BeginMenu("Rigid body")) {
                         // We can't have both bodies.
@@ -394,6 +428,7 @@ namespace Prism::UI
             if (isOpened) {
                 renderTransformComponent(registry, entity);
                 renderMeshComponent(availableMeshResources, registry, entity);
+                renderLightComponent(registry, entity);
                 renderStaticRigidBodyComponent(registry, entity);
                 renderDynamicRigidBodyComponent(registry, entity);
                 renderAABBComponent(registry, entity);

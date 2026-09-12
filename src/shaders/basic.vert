@@ -26,8 +26,8 @@ layout(location = 3) out flat int outTextureId;
 
 void main()
 {
-    gl_Position  = commonUniforms.projection * commonUniforms.view * pushConstants.model * vec4(inPosition, 1.0);
-    
+    gl_Position = commonUniforms.projection * commonUniforms.view * pushConstants.model * vec4(inPosition, 1.0);
+
     outNormal    = normalize(mat3(transpose(inverse(pushConstants.model))) * inNormal);
     outPosition  = vec3(pushConstants.model * vec4(inPosition, 1.0));
     outTextureUV = inTextureUV;

@@ -15,7 +15,7 @@ namespace Prism::Systems
     namespace
     {} // namespace
 
-    CommonUniformUpdateSystem::CommonUniformUpdateSystem(Resources::ContextResources& contextResources) : m_contextResources(contextResources){};
+    CommonUniformUpdateSystem::CommonUniformUpdateSystem(Resources::ContextResources& contextResources) : m_contextResources(contextResources) {};
 
     void CommonUniformUpdateSystem::Update(float deltaTime, Resources::Scene& scene)
     {
