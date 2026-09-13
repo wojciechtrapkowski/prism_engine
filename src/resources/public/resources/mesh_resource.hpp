@@ -33,6 +33,8 @@ namespace Prism::Resources
             std::string                                 name,
             Resources::VkBufferResource<Vertex>         vertexBuffer,
             Resources::VkBufferResource<Index>          indexBuffer,
+            std::vector<Vertex>                         vertices,
+            std::vector<Index>                          indices,
             std::optional<Resources::VkTextureResource> texture = std::nullopt);
 
         ~MeshResource() = default;
@@ -49,6 +51,8 @@ namespace Prism::Resources
 
         std::optional<Resources::VkTextureResource>& GetTexture() { return _texture; }
 
+        std::vector<Vertex>& GetVertices() { return _vertices; }
+
         const std::string& GetName() const { return _name; }
 
         VkFormat    GetVertexType() const { return VERTEX_TYPE; }
@@ -59,9 +63,13 @@ namespace Prism::Resources
     private:
         std::string _name = "None";
 
-        Resources::VkBufferResource<Vertex>         _vertexBuffer = {};
-        Resources::VkBufferResource<Index>          _indexBuffer  = {};
-        std::optional<Resources::VkTextureResource> _texture      = std::nullopt;
+        Resources::VkBufferResource<Vertex> _vertexBuffer = {};
+        Resources::VkBufferResource<Index>  _indexBuffer  = {};
+
+        std::vector<Vertex> _vertices = {};
+        std::vector<Index>  _indices  = {};
+
+        std::optional<Resources::VkTextureResource> _texture = std::nullopt;
     };
 
 }; // namespace Prism::Resources
