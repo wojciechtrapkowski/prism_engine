@@ -3,16 +3,14 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "push_constants.glsl"
+#include "../common_uniforms.glsl"
 
 #extension GL_EXT_nonuniform_qualifier : require
 
-layout(set = 0, binding = 0) uniform CommonUniforms
+layout(set = 0, binding = 0) uniform UBO
 {
-    mat4 view;
-    mat4 projection;
-    vec4 cameraPosition;
-}
-commonUniforms;
+    CommonUniforms commonUniforms;
+};
 
 layout(set = 0, binding = 1) uniform sampler2D textures[];
 

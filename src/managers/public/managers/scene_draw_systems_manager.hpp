@@ -4,6 +4,7 @@
 
 #include "systems/gizmo_drawing_system.hpp"
 #include "systems/mesh_drawing_system.hpp"
+#include "systems/light_drawing_system.hpp"
 #include "systems/aabb_drawing_system.hpp"
 #include "systems/present_system.hpp"
 #include "systems/screen_clearing_system.hpp"
@@ -41,6 +42,7 @@ namespace Prism::Managers
         Systems::AABBDrawingSystem    _aabbDrawingSystem;
         Systems::ScreenClearingSystem _screenClearingSystem;
         Systems::MeshDrawingSystem    _meshDrawingSystem;
+        Systems::LightDrawingSystem   _lightDrawingSystem;
         Systems::GizmoDrawingSystem   _gizmoDrawingSystem;
         Systems::UIDrawingSystem      _uiDrawingSystem;
         Systems::PresentSystem        _presentSystem;

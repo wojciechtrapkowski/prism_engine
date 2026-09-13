@@ -20,6 +20,7 @@ set(SYSTEMS_SOURCES
     mesh_loading_system.cpp
     physics_system.cpp
     aabb_drawing_system.cpp
+    light_drawing_system.cpp
 
     subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.cpp
     subsystems/mesh_drawing_system/raytraced_geometry_drawing_system.cpp
@@ -45,6 +46,7 @@ set(SYSTEMS_HEADERS
     public/systems/mesh_loading_system.hpp
     public/systems/physics_system.hpp
     public/systems/aabb_drawing_system.hpp
+    public/systems/light_drawing_system.hpp
 
     public/systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp
     public/systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp

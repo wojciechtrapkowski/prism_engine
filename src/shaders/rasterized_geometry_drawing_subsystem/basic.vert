@@ -4,13 +4,12 @@
 
 #include "push_constants.glsl"
 
-layout(set = 0, binding = 0) uniform CommonUniforms
+#include "../common_uniforms.glsl"
+
+layout(set = 0, binding = 0) uniform UBO
 {
-    mat4 view;
-    mat4 projection;
-    vec4 cameraPosition;
-}
-commonUniforms;
+    CommonUniforms commonUniforms;
+};
 
 layout(push_constant) uniform PushConstants
 {

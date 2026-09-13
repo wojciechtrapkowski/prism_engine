@@ -1,22 +1,20 @@
-#include "systems/aabb_drawing_system.hpp"
+#include "systems/light_drawing_system.hpp"
 
 #include "glm/glm.hpp"
 
-#include "assets/box.hpp"
-
-#include "resources/mesh_resource.hpp"
 #include "resources/common_resource.hpp"
 
-#include "components/aabb.hpp"
+#include "components/light.hpp"
+#include "components/transform.hpp"
 
 #include "utils/vulkan/common.hpp"
 
-#ifndef AABB_VERT_SHADER_PATH
-#error "AABB_VERT_SHADER_PATH is not defined!"
+#ifndef PASS_THROUGH_VERT_SHADER_PATH
+#error "PASS_THROUGH_VERT_SHADER_PATH is not defined!"
 #endif
 
-#ifndef AABB_FRAG_SHADER_PATH
-#error "AABB_FRAG_SHADER_PATH is not defined!"
+#ifndef LIGHTS_FRAG_SHADER_PATH
+#error "LIGHTS_FRAG_SHADER_PATH is not defined!"
 #endif
 
 namespace Prism::Systems
@@ -27,12 +25,9 @@ namespace Prism::Systems
         {
             VkDescriptorPool descriptorPool;
 
-            std::array<VkDescriptorPoolSize, 2> poolSizes{};
+            std::array<VkDescriptorPoolSize, 1> poolSizes{};
             poolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             poolSizes[0].descriptorCount = Resources::VulkanResource::FRAMES_IN_FLIGHT;
-
-            poolSizes[1].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            poolSizes[1].descriptorCount = Resources::VulkanResource::FRAMES_IN_FLIGHT;
 
             VkDescriptorPoolCreateInfo poolInfo{};
             poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -55,17 +50,10 @@ namespace Prism::Systems
             uboBinding.binding            = 0;
             uboBinding.descriptorType     = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             uboBinding.descriptorCount    = 1;
-            uboBinding.stageFlags         = VK_SHADER_STAGE_VERTEX_BIT;
+            uboBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
             uboBinding.pImmutableSamplers = nullptr;
 
-            VkDescriptorSetLayoutBinding transformBufferBinding{};
-            transformBufferBinding.binding            = 1;
-            transformBufferBinding.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            transformBufferBinding.descriptorCount    = 1;
-            transformBufferBinding.stageFlags         = VK_SHADER_STAGE_VERTEX_BIT;
-            transformBufferBinding.pImmutableSamplers = nullptr;
-
-            std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboBinding, transformBufferBinding};
+            std::array<VkDescriptorSetLayoutBinding, 1> bindings = {uboBinding};
 
             VkDescriptorSetLayoutCreateInfo layoutInfo{};
             layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -75,7 +63,7 @@ namespace Prism::Systems
             VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{};
             bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
 
-            std::array<VkDescriptorBindingFlags, 2> bindingFlags = {0, 0};
+            std::array<VkDescriptorBindingFlags, 1> bindingFlags = {0};
             bindingFlagsInfo.bindingCount                        = static_cast<uint32_t>(bindingFlags.size());
             bindingFlagsInfo.pBindingFlags                       = bindingFlags.data();
 
@@ -113,12 +101,17 @@ namespace Prism::Systems
         {
             VkPipelineLayout pipelineLayout;
 
+            VkPushConstantRange fPushConstantsRange;
+            fPushConstantsRange.offset     = 0;
+            fPushConstantsRange.size       = sizeof(LightDrawingSystem::FragmentShaderPushConstants);
+            fPushConstantsRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             pipelineLayoutInfo.setLayoutCount         = 1;
             pipelineLayoutInfo.pSetLayouts            = &descriptorSetLayout;
-            pipelineLayoutInfo.pushConstantRangeCount = 0;
-            pipelineLayoutInfo.pPushConstantRanges    = nullptr;
+            pipelineLayoutInfo.pushConstantRangeCount = 1;
+            pipelineLayoutInfo.pPushConstantRanges    = &fPushConstantsRange;
 
             if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create pipeline layout!");
@@ -130,8 +123,8 @@ namespace Prism::Systems
         VkPipeline createPipeline(VkDevice device, VkPipelineLayout pipelineLayout)
         {
             // Load shader modules
-            VkShaderModule vertexShaderModule   = Utils::Vulkan::Common::loadShaderModule(device, AABB_VERT_SHADER_PATH);
-            VkShaderModule fragmentShaderModule = Utils::Vulkan::Common::loadShaderModule(device, AABB_FRAG_SHADER_PATH);
+            VkShaderModule vertexShaderModule   = Utils::Vulkan::Common::loadShaderModule(device, PASS_THROUGH_VERT_SHADER_PATH);
+            VkShaderModule fragmentShaderModule = Utils::Vulkan::Common::loadShaderModule(device, LIGHTS_FRAG_SHADER_PATH);
 
             // Shader stages
             VkPipelineShaderStageCreateInfo shaderStages[2]{};
@@ -150,31 +143,10 @@ namespace Prism::Systems
             VkPipelineVertexInputStateCreateInfo vertexInputState{};
             vertexInputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
-            VkVertexInputBindingDescription binding{};
-            binding.binding   = 0;
-            binding.stride    = sizeof(Resources::MeshResource::Vertex);
-            binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-            VkVertexInputAttributeDescription attributes[3]{};
-            attributes[0].binding  = 0;
-            attributes[0].location = 0;
-            attributes[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-            attributes[0].offset   = offsetof(Resources::MeshResource::Vertex, position);
-
-            attributes[1].binding  = 0;
-            attributes[1].location = 1;
-            attributes[1].format   = VK_FORMAT_R32G32B32_SFLOAT;
-            attributes[1].offset   = offsetof(Resources::MeshResource::Vertex, normal);
-
-            attributes[2].binding  = 0;
-            attributes[2].location = 2;
-            attributes[2].format   = VK_FORMAT_R32G32_SFLOAT;
-            attributes[2].offset   = offsetof(Resources::MeshResource::Vertex, textureUV);
-
-            vertexInputState.vertexBindingDescriptionCount   = 1;
-            vertexInputState.pVertexBindingDescriptions      = &binding;
-            vertexInputState.vertexAttributeDescriptionCount = 3;
-            vertexInputState.pVertexAttributeDescriptions    = attributes;
+            vertexInputState.vertexBindingDescriptionCount   = 0;
+            vertexInputState.pVertexBindingDescriptions      = nullptr;
+            vertexInputState.vertexAttributeDescriptionCount = 0;
+            vertexInputState.pVertexAttributeDescriptions    = nullptr;
 
             // Input assembly
             VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{};
@@ -210,7 +182,7 @@ namespace Prism::Systems
             // Color blend attachment
             VkPipelineColorBlendAttachmentState colorBlendAttachment{};
             colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-            colorBlendAttachment.blendEnable    = VK_TRUE;
+            colorBlendAttachment.blendEnable    = VK_FALSE;
 
             colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
             colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
@@ -275,17 +247,12 @@ namespace Prism::Systems
             return pipeline;
         }
 
-        void updateDescriptorSet(VkDevice device, VkDescriptorSet descriptorSet, VkBuffer commonUniformBuffer, VkBuffer transformsBuffer)
+        void updateDescriptorSet(VkDevice device, VkDescriptorSet descriptorSet, VkBuffer commonUniformBuffer)
         {
             VkDescriptorBufferInfo commonUniformBufferInfo{};
             commonUniformBufferInfo.buffer = commonUniformBuffer;
             commonUniformBufferInfo.offset = 0;
             commonUniformBufferInfo.range  = VK_WHOLE_SIZE;
-
-            VkDescriptorBufferInfo transformsBufferInfo{};
-            transformsBufferInfo.buffer = transformsBuffer;
-            transformsBufferInfo.offset = 0;
-            transformsBufferInfo.range  = VK_WHOLE_SIZE;
 
             std::vector<VkWriteDescriptorSet> descriptorWrites = {};
 
@@ -299,21 +266,11 @@ namespace Prism::Systems
             commonUniformDescriptorWrite.pBufferInfo     = &commonUniformBufferInfo;
             descriptorWrites.push_back(commonUniformDescriptorWrite);
 
-            VkWriteDescriptorSet transformDescriptorWrite{};
-            transformDescriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            transformDescriptorWrite.dstSet          = descriptorSet;
-            transformDescriptorWrite.dstBinding      = 1;
-            transformDescriptorWrite.dstArrayElement = 0;
-            transformDescriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            transformDescriptorWrite.descriptorCount = 1;
-            transformDescriptorWrite.pBufferInfo     = &transformsBufferInfo;
-            descriptorWrites.push_back(transformDescriptorWrite);
-
             vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
         };
     } // namespace
 
-    AABBDrawingSystem::AABBDrawingSystem(Resources::ContextResources& contextResources) : _contextResources(contextResources)
+    LightDrawingSystem::LightDrawingSystem(Resources::ContextResources& contextResources) : _contextResources(contextResources)
     {
         auto&    vulkanResource = _contextResources.GetVulkanResource();
         VkDevice device         = vulkanResource.GetDevice();
@@ -325,7 +282,7 @@ namespace Prism::Systems
         _pipeline            = createPipeline(device, _pipelineLayout);
     };
 
-    AABBDrawingSystem::~AABBDrawingSystem()
+    LightDrawingSystem::~LightDrawingSystem()
     {
         auto&    vulkanResource = _contextResources.GetVulkanResource();
         VkDevice device         = vulkanResource.GetDevice();
@@ -348,118 +305,17 @@ namespace Prism::Systems
         }
     }
 
-    void AABBDrawingSystem::Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::VkStagingBufferResource& stagingBuffer, Resources::Scene& scene)
+    void LightDrawingSystem::Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::VkStagingBufferResource& stagingBuffer, Resources::Scene& scene)
     {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-        _transformsBufferToDelete = std::nullopt;
-
-        auto& vulkanResource = _contextResources.GetVulkanResource();
-        auto& meshStorage    = scene.GetMeshStorage();
-        auto& registry       = scene.GetRegistry();
-        auto& systemsStorage = scene.GetSystemsStorage();
-
-        auto& vmaAllocator = _contextResources.GetVulkanResource().GetVmaAllocator();
-
-        auto aabbView = registry.view<Components::AABB>();
-        if (aabbView.empty()) {
-            vkEndCommandBuffer(commandBuffer);
-            return;
-        }
-
-        auto boxMeshOpt = meshStorage.Get<Resources::MeshResource>(BOX_MESH_RESOURCE_ID);
-        if (!boxMeshOpt) {
-            auto boxVertices = Assets::Box::VERTICES;
-            auto boxIndices  = Assets::Box::INDICES;
-
-            std::vector<Resources::MeshResource::Vertex> transformedBoxVertices(boxVertices.size());
-            for (size_t i = 0; i < transformedBoxVertices.size(); i++) {
-                transformedBoxVertices[i].position  = boxVertices[i];
-                transformedBoxVertices[i].normal    = glm::vec3{0.0f};
-                transformedBoxVertices[i].textureUV = glm::vec2{0.0f};
-            }
-
-            std::vector<Resources::MeshResource::Index> transformedBoxIndices(boxIndices.size());
-            for (size_t i = 0; i < transformedBoxIndices.size(); i++) {
-                transformedBoxIndices[i].idx = boxIndices[i];
-            }
-
-            auto transformedBoxVerticesBufferSize = transformedBoxVertices.size() * sizeof(transformedBoxVertices[0]);
-            Resources::VkBufferResource<Resources::MeshResource::Vertex> transformedBoxVerticesBuffer{
-                vmaAllocator, transformedBoxVerticesBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT};
-
-            stagingBuffer.Copy(transformedBoxVerticesBuffer.GetBuffer(), transformedBoxVertices.data(), transformedBoxVerticesBufferSize);
-
-            auto transformedBoxIndicesBufferSize = transformedBoxVertices.size() * sizeof(transformedBoxVertices[0]);
-            Resources::VkBufferResource<Resources::MeshResource::Index> transformedBoxIndicesBuffer{
-                vmaAllocator, transformedBoxIndicesBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT};
-
-            stagingBuffer.Copy(transformedBoxIndicesBuffer.GetBuffer(), transformedBoxIndices.data(), transformedBoxIndicesBufferSize);
-
-            Resources::MeshResource boxMeshResource{
-                "BoxMesh", std::move(transformedBoxVerticesBuffer), std::move(transformedBoxIndicesBuffer), transformedBoxVertices, transformedBoxIndices};
-
-            meshStorage.Insert<Resources::MeshResource>(BOX_MESH_RESOURCE_ID, std::make_unique<Resources::MeshResource>(std::move(boxMeshResource)));
-        }
-
-        {
-            bool rebuildTransformsBuffer = false;
-
-            auto boxTransformsBufferOpt = systemsStorage.Get<Resources::VkBufferResource<BoxTransformEntry>>(BOX_TRANSFORMS_BUFFER_ID);
-
-            rebuildTransformsBuffer |= !boxTransformsBufferOpt.has_value();
-
-            if (boxTransformsBufferOpt) {
-                auto& boxTransformsBuffer = boxTransformsBufferOpt->get();
-
-                rebuildTransformsBuffer |= aabbView.size() != boxTransformsBuffer.GetElementCount();
-            }
-
-            if (rebuildTransformsBuffer) {
-                if (boxTransformsBufferOpt) {
-                    _transformsBufferToDelete = std::move(boxTransformsBufferOpt->get());
-                    systemsStorage.Delete(BOX_TRANSFORMS_BUFFER_ID);
-                }
-
-                auto boxTransformsBufferSize = aabbView.size() * sizeof(BoxTransformEntry);
-
-                Resources::VkBufferResource<BoxTransformEntry> boxTransformsBuffer{
-                    vmaAllocator, boxTransformsBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU};
-
-                systemsStorage.Insert(
-                    BOX_TRANSFORMS_BUFFER_ID, std::make_unique<Resources::VkBufferResource<BoxTransformEntry>>(std::move(boxTransformsBuffer)));
-            }
-
-            boxTransformsBufferOpt = systemsStorage.Get<Resources::VkBufferResource<BoxTransformEntry>>(BOX_TRANSFORMS_BUFFER_ID);
-
-            auto& boxTransformsBuffer = boxTransformsBufferOpt->get();
-
-            std::vector<BoxTransformEntry> boxTransforms;
-            boxTransforms.reserve(aabbView.size());
-            for (auto&& [entity, aabbComponent] : aabbView.each()) {
-                BoxTransformEntry entry;
-                entry.entityId = static_cast<uint32_t>(entity);
-                entry.lower    = aabbComponent.lower;
-                entry.upper    = glm::vec3(aabbComponent.upper);
-                boxTransforms.push_back(std::move(entry));
-            }
-
-            auto boxTransformsBufferSize = boxTransforms.size() * sizeof(boxTransforms[0]);
-
-            void* data = nullptr;
-            if (vmaMapMemory(vulkanResource.GetVmaAllocator(), boxTransformsBuffer.GetAllocation(), &data) == VK_SUCCESS) {
-                std::memcpy(data, boxTransforms.data(), boxTransformsBufferSize);
-                vmaUnmapMemory(vulkanResource.GetVmaAllocator(), boxTransformsBuffer.GetAllocation());
-            }
-        }
-
         vkEndCommandBuffer(commandBuffer);
     }
 
-    void AABBDrawingSystem::Render(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget)
+    void LightDrawingSystem::Render(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget)
     {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -472,12 +328,6 @@ namespace Prism::Systems
 
         auto& resourceStorage = _contextResources.GetResourceStorage();
         auto& vulkanResource  = _contextResources.GetVulkanResource();
-
-        auto aabbView = registry.view<Components::AABB>();
-        if (aabbView.empty()) {
-            vkEndCommandBuffer(commandBuffer);
-            return;
-        }
 
         VkRenderingAttachmentInfo colorAttachment{};
         colorAttachment.sType       = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -506,13 +356,6 @@ namespace Prism::Systems
 
         auto currentFrame = vulkanResource.GetCurrentFrameOffset();
 
-        auto boxMeshOpt = meshStorage.Get<Resources::MeshResource>(BOX_MESH_RESOURCE_ID);
-        if (!boxMeshOpt) {
-            vkEndCommandBuffer(commandBuffer);
-            return;
-        }
-        auto& boxMesh = boxMeshOpt->get();
-
         auto commonUniformBufferOpt =
             resourceStorage.Get<Resources::VkBufferResource<Resources::CommonResource>>(Resources::CommonResource::UNIFORM_BUFFER_ID, currentFrame);
         if (!commonUniformBufferOpt) {
@@ -521,14 +364,7 @@ namespace Prism::Systems
         }
         auto& commonUniformBuffer = commonUniformBufferOpt->get();
 
-        auto transformsBufferOpt = systemsStorage.Get<Resources::VkBufferResource<BoxTransformEntry>>(BOX_TRANSFORMS_BUFFER_ID);
-        if (!transformsBufferOpt) {
-            vkEndCommandBuffer(commandBuffer);
-            return;
-        }
-        auto& transformsBuffer = transformsBufferOpt->get();
-
-        updateDescriptorSet(vulkanResource.GetDevice(), _descriptorSets[currentFrame], commonUniformBuffer.GetBuffer(), transformsBuffer.GetBuffer());
+        updateDescriptorSet(vulkanResource.GetDevice(), _descriptorSets[currentFrame], commonUniformBuffer.GetBuffer());
 
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
@@ -549,13 +385,16 @@ namespace Prism::Systems
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSets[currentFrame], 0, nullptr);
 
-        VkBuffer     vertexBuffers[] = {boxMesh.GetVertexBuffer().GetBuffer()};
-        VkDeviceSize offsets[]       = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, boxMesh.GetIndexBuffer().GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        auto lightsView = registry.view<Components::Light, Components::Transform>();
+        for (auto&& [entity, light, transform] : lightsView.each()) {
+            FragmentShaderPushConstants pc{};
+            pc.position = glm::vec3(transform.transform[3]);
+            pc.strength = light.strength;
 
-        auto elCount = transformsBuffer.GetElementCount();
-        vkCmdDrawIndexed(commandBuffer, boxMesh.GetIndexBuffer().GetElementCount(), transformsBuffer.GetElementCount(), 0, 0, 0);
+            vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(FragmentShaderPushConstants), &pc);
+
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        }
 
         vkCmdEndRendering(commandBuffer);
 

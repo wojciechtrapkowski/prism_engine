@@ -1,22 +1,24 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform CommonUniforms
-{
-    mat4 view;
-    mat4 projection;
-    vec4 cameraPosition;
-}
-commonUniforms;
+#extension GL_GOOGLE_include_directive : require
 
-struct BoxTransformEntry {
+#include "../common_uniforms.glsl"
+
+layout(set = 0, binding = 0) uniform UBO
+{
+    CommonUniforms commonUniforms;
+};
+
+struct BoxTransformEntry
+{
     vec4 lower;
     vec3 upper;
     uint entityId;
 };
 
-layout (set = 0, binding = 1, std430) readonly buffer BoxTransformsBuffer
+layout(set = 0, binding = 1, std430) readonly buffer BoxTransformsBuffer
 {
-     BoxTransformEntry boxTransforms[];
+    BoxTransformEntry boxTransforms[];
 };
 
 layout(location = 0) in vec3 inPosition;
@@ -31,12 +33,11 @@ void main()
 
     // Box center is in 0, 0, 0 - that's why we move it by center.
     // Multiply first by scale, so that we are scaling box in the origin.
-    vec3 center = (entry.lower.xyz + entry.upper) * 0.5;
-    vec3 halfExtent = (entry.upper - entry.lower.xyz) * 0.5;
+    vec3 center      = (entry.lower.xyz + entry.upper) * 0.5;
+    vec3 halfExtent  = (entry.upper - entry.lower.xyz) * 0.5;
     vec3 boxPosition = inPosition * halfExtent + center;
 
-    gl_Position  = commonUniforms.projection * commonUniforms.view * vec4(boxPosition, 1.0);
-    
-    outEntityId = entry.entityId;
+    gl_Position = commonUniforms.projection * commonUniforms.view * vec4(boxPosition, 1.0);
 
+    outEntityId = entry.entityId;
 }

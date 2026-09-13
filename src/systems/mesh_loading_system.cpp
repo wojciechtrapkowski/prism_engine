@@ -7,6 +7,7 @@
 #include "components/mesh.hpp"
 #include "components/name.hpp"
 #include "components/tags.hpp"
+#include "components/light.hpp"
 
 #include <iostream>
 
@@ -34,6 +35,12 @@ namespace Prism::Systems
         // For testing purposes.
         bool static firstFrames = true;
         if (firstFrames && _contextResources.GetVulkanResource().GetCurrentFrameOffset() == 0) {
+            // Create a basic light
+            auto lightEntity = registry.create();
+            registry.emplace<Components::Light>(lightEntity);
+            registry.emplace<Components::Transform>(lightEntity);
+            registry.emplace<Components::Name>(lightEntity, "Light");
+
             Loaders::MeshLoader meshLoader;
             auto backpackModelOpt = meshLoader(_contextResources.GetVulkanResource(), commandBuffer, stagingBuffer, "models/backpack-texture/scene.gltf");
             if (!backpackModelOpt) {

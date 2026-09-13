@@ -36,10 +36,13 @@ namespace Prism::Systems
         auto& camera    = registry.get<Components::Camera>(cameraEntity);
         auto& transform = registry.get<Components::Transform>(cameraEntity);
 
+        auto [width, height] = m_contextResources.GetVulkanResource().GetSwapchainExtent();
+
         Resources::CommonResource shaderData{};
-        shaderData.view           = camera.view;
-        shaderData.projection     = glm::scale(camera.projection, glm::vec3(1.0f, -1.0f, 1.0f)); // Flip Y in the projection matrix - VULKAN
-        shaderData.cameraPosition = glm::vec4(transform.transform[3]);
+        shaderData.view             = camera.view;
+        shaderData.projection       = glm::scale(camera.projection, glm::vec3(1.0f, -1.0f, 1.0f)); // Flip Y in the projection matrix - VULKAN
+        shaderData.cameraPosition   = glm::vec4(transform.transform[3]);
+        shaderData.screenResolution = glm::ivec2(width, height);
 
         auto& vulkanResource  = m_contextResources.GetVulkanResource();
         auto& resourceStorage = m_contextResources.GetResourceStorage();

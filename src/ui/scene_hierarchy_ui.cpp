@@ -163,7 +163,7 @@ namespace Prism::UI
                 }
                 auto& light = *lightPtr;
 
-                ImGui::SliderFloat("Set strength", &light.strength, 0.0f, 10.0f);
+                ImGui::SliderFloat("Set strength", &light.strength, 0.0f, 1000.0f);
 
                 ImGui::TreePop();
             }
