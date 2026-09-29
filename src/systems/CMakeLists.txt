@@ -23,7 +23,8 @@ set(SYSTEMS_SOURCES
     light_drawing_system.cpp
 
     subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.cpp
-    subsystems/mesh_drawing_system/raytraced_geometry_drawing_system.cpp
+    subsystems/mesh_drawing_system/api_raytraced_geometry_drawing_subsystem.cpp
+    subsystems/mesh_drawing_system/custom_raytraced_geometry_drawing_subsystem.cpp
 
     subsystems/physics_system/gravity_applying_subsystem.cpp
     subsystems/physics_system/aabb_creating_subsystem.cpp
@@ -49,7 +50,8 @@ set(SYSTEMS_HEADERS
     public/systems/light_drawing_system.hpp
 
     public/systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp
-    public/systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp
+    public/systems/subsystems/mesh_drawing_system/api_raytraced_geometry_drawing_subsystem.hpp
+    public/systems/subsystems/mesh_drawing_system/custom_raytraced_geometry_drawing_subsystem.hpp
     
     public/systems/subsystems/physics_system/gravity_applying_subsystem.hpp
     public/systems/subsystems/physics_system/aabb_creating_subsystem.hpp

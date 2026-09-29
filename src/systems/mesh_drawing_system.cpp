@@ -5,7 +5,8 @@
 #include <vector>
 
 #include "systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp"
-#include "systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/api_raytraced_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/custom_raytraced_geometry_drawing_subsystem.hpp"
 
 #include "components/systems_settings.hpp"
 #include "components/mesh.hpp"
@@ -34,8 +35,9 @@ namespace Prism::Systems
 
     MeshDrawingSystem::MeshDrawingSystem(Resources::ContextResources& contextResources) : _contextResources(contextResources)
     {
-        _rasterizedGeometryDrawingSubsystem = std::make_unique<Subsystems::MeshDrawingSystem::RasterizedGeometryDrawingSubsystem>(contextResources);
-        _raytracedGeometryDrawingSubsystem  = std::make_unique<Subsystems::MeshDrawingSystem::RaytracedGeometryDrawingSubsystem>(contextResources);
+        _rasterizedGeometryDrawingSubsystem      = std::make_unique<Subsystems::MeshDrawingSystem::RasterizedGeometryDrawingSubsystem>(contextResources);
+        _apiRaytracedGeometryDrawingSubsystem    = std::make_unique<Subsystems::MeshDrawingSystem::APIRaytracedGeometryDrawingSubsystem>(contextResources);
+        _customRaytracedGeometryDrawingSubsystem = std::make_unique<Subsystems::MeshDrawingSystem::CustomRaytracedGeometryDrawingSubsystem>(contextResources);
     };
 
     MeshDrawingSystem::~MeshDrawingSystem() {}
@@ -62,7 +64,8 @@ namespace Prism::Systems
         }
 
         _rasterizedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene, stagingBuffer);
-        _raytracedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene, stagingBuffer);
+        _apiRaytracedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene, stagingBuffer);
+        _customRaytracedGeometryDrawingSubsystem->Update(deltaTime, commandBuffer, scene, stagingBuffer);
 
         vkEndCommandBuffer(commandBuffer);
     };
@@ -89,8 +92,10 @@ namespace Prism::Systems
 
         if (settings.drawingMode == Components::MeshDrawingSystemSettings::MeshDrawingMode::RASTERIZATION) {
             _rasterizedGeometryDrawingSubsystem->Render(deltaTime, commandBuffer, scene, renderTarget);
-        } else {
-            _raytracedGeometryDrawingSubsystem->Render(deltaTime, commandBuffer, scene, renderTarget);
+        } else if (settings.drawingMode == Components::MeshDrawingSystemSettings::MeshDrawingMode::API_RAYTRACING) {
+            _apiRaytracedGeometryDrawingSubsystem->Render(deltaTime, commandBuffer, scene, renderTarget);
+        } else if (settings.drawingMode == Components::MeshDrawingSystemSettings::MeshDrawingMode::CUSTOM_RAYTRACING) {
+            _customRaytracedGeometryDrawingSubsystem->Render(deltaTime, commandBuffer, scene, renderTarget);
         }
 
         vkEndCommandBuffer(commandBuffer);

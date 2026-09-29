@@ -51,7 +51,7 @@ void main()
 
         vec3 thisLightDir = light.position - inPosition;
 
-        float multiplier = light.strength / max(length(thisLightDir), 0.01); // to avoid division by zero
+        float multiplier = sqrt(light.strength) / max(length(thisLightDir), 0.01); // to avoid division by zero
         thisLightDir     = normalize(thisLightDir);
 
         vec3 thisLightDiffuse = max(dot(normal, thisLightDir), 0.0) * lightColor;

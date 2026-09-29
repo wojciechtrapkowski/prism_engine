@@ -1,4 +1,4 @@
-#include "systems/subsystems/mesh_drawing_system/raytraced_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/api_raytraced_geometry_drawing_subsystem.hpp"
 
 #include "components/mesh.hpp"
 #include "components/transform.hpp"
@@ -608,7 +608,8 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         }
     } // namespace
 
-    RaytracedGeometryDrawingSubsystem::RaytracedGeometryDrawingSubsystem(Resources::ContextResources& contextResources) : _contextResources(contextResources)
+    APIRaytracedGeometryDrawingSubsystem::APIRaytracedGeometryDrawingSubsystem(Resources::ContextResources& contextResources) :
+        _contextResources(contextResources)
     {
         auto& vulkanResource = _contextResources.GetVulkanResource();
 
@@ -626,7 +627,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         _pipeline            = createPipeline(device, physicalDevice, _pipelineLayout);
     };
 
-    RaytracedGeometryDrawingSubsystem::~RaytracedGeometryDrawingSubsystem()
+    APIRaytracedGeometryDrawingSubsystem::~APIRaytracedGeometryDrawingSubsystem()
     {
         auto&    vulkanResource = _contextResources.GetVulkanResource();
         VkDevice device         = vulkanResource.GetDevice();
@@ -650,7 +651,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
     }
 
 #pragma region UPDATE
-    void RaytracedGeometryDrawingSubsystem::Update(
+    void APIRaytracedGeometryDrawingSubsystem::Update(
         float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::VkStagingBufferResource& stagingBuffer)
     {
         auto& resourceStorage = _contextResources.GetResourceStorage();
@@ -963,7 +964,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         }();
     };
 
-    void RaytracedGeometryDrawingSubsystem::Render(
+    void APIRaytracedGeometryDrawingSubsystem::Render(
         float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget)
     {
         auto& resourceStorage = _contextResources.GetResourceStorage();
