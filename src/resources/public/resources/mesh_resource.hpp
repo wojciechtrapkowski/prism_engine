@@ -52,6 +52,7 @@ namespace Prism::Resources
         std::optional<Resources::VkTextureResource>& GetTexture() { return _texture; }
 
         std::vector<Vertex>& GetVertices() { return _vertices; }
+        std::vector<Index>&  GetIndices() { return _indices; }
 
         const std::string& GetName() const { return _name; }
 
