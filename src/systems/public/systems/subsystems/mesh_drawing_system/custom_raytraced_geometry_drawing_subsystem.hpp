@@ -27,6 +27,8 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         CustomRaytracedGeometryDrawingSubsystem(CustomRaytracedGeometryDrawingSubsystem&& other)            = delete;
         CustomRaytracedGeometryDrawingSubsystem& operator=(CustomRaytracedGeometryDrawingSubsystem&& other) = delete;
 
+        inline static const Resources::Resource::ID BVH_BUFFER_ID = std::hash<std::string_view>{}("CustomRaytracedGeometryDrawingSubsystem/BVHBuffer");
+
         void Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::VkStagingBufferResource& stagingBuffer);
 
         void Render(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget);

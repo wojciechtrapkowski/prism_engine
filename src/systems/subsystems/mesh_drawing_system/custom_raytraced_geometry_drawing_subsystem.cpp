@@ -14,7 +14,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 {
     namespace
     {
-        struct BVHNode
+        struct BVHNode 
         {
             struct BVHLeaf
             {
@@ -25,24 +25,29 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 glm::vec3 v1;
                 glm::vec3 v2;
             };
+            
+            struct BVHIndex
+            {
+                uint32_t level;
+                uint32_t indexInLevel;
+            };
 
             constexpr static auto MAX_NUMBER_OF_CHILDREN = 6;
 
             Components::AABB                            aabb;
-            std::array<BVHNode, MAX_NUMBER_OF_CHILDREN> children;
+            std::array<BVHIndex, MAX_NUMBER_OF_CHILDREN> children;
             std::optional<BVHLeaf>                      leaf;
         };
 
-        struct BVH
+        struct BVH : Resources::ResourceImpl<BVH>
         {
-            BVHNode root;
+            std::vector<std::vector<BVHNode>> nodes;
         };
 
         // First implementation is on CPU.
-        void buildBVHUsingMorton(Resources::ResourceStorage& meshStorage, entt::registry& registry)
+        std::vector<std::vector<BVHNode>>
+        buildBVHUsingMorton(Resources::ResourceStorage& meshStorage, entt::registry& registry)
         {
-            BVH outputBVH{};
-
             // We are doing bottom up, so we can't start with the root.
             std::vector<std::vector<BVHNode>> bvhNodes{};
             bvhNodes.resize(1);
@@ -90,8 +95,8 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                     leaf.v2         = v2;
 
                     Components::AABB aabb;
-                    aabb.originalLower = glm::vec4(glm::min(v0, glm::min(v1, v2)), 1.0);
-                    aabb.originalUpper = glm::vec4(glm::max(v0, glm::max(v1, v2)), 1.0);
+                    aabb.lower = glm::vec4(glm::min(v0, glm::min(v1, v2)), 1.0);
+                    aabb.upper = glm::vec4(glm::max(v0, glm::max(v1, v2)), 1.0);
 
                     BVHNode node{};
                     node.leaf     = std::move(leaf);
@@ -111,19 +116,57 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             }
 
             int currentIndex = 1;
-            while (true) { // current index < log_6
+            uint32_t maxHeight    = std::ceil(std::log(bvhNodes[0].size()) / std::log(6)) + 1;
+            while (currentIndex < maxHeight) { 
                 int                  currentCounter = 0;
                 std::vector<BVHNode> tempNodes;
+                tempNodes.reserve(std::log(bvhNodes[currentIndex-1].size()) / std::log(6));
                 Components::AABB     tempAabb;
+                tempAabb.lower = glm::vec4(std::numeric_limits<float>::max());
+                tempAabb.upper         = glm::vec4(std::numeric_limits<float>::min());
+
                 for (size_t i = 0; i < bvhNodes[currentIndex - 1].size(); i++) {
                     currentCounter++;
+                    auto& currentAABB = bvhNodes[currentIndex - 1][i].aabb;
+
+                    // calculate aabb
+                    tempAabb.lower = glm::min(tempAabb.lower, currentAABB.lower);
+                    tempAabb.upper = glm::max(tempAabb.upper, currentAABB.upper);
 
                     if (currentCounter % 6 == 0) {
-                        // calculate aabb
                         // create new node
+                        BVHNode node {};
+                        node.aabb      = tempAabb;
+                        for (int j = 0; j < 6; j++) {
+                            node.children[j].level= currentIndex;
+                            node.children[j].indexInLevel = i - j;
+                        }
+                        
+                        tempAabb.lower = glm::vec4(std::numeric_limits<float>::max());
+                        tempAabb.upper = glm::vec4(std::numeric_limits<float>::min());
+                        currentCounter = 0;
+
+                        tempNodes.push_back(node);
                     }
                 }
+
+                // create remaining node
+                if (currentCounter > 0) {
+                    BVHNode node{};
+                    node.aabb = tempAabb;
+                    for (int j = 0; j < 6; j++) {
+                        node.children[j].level        = currentIndex;
+                        node.children[j].indexInLevel = bvhNodes[currentIndex-1].size() - 1 - j;
+                    }
+
+                    tempNodes.push_back(node);
+                }
+
+                // add new level
+                currentIndex++;
+                bvhNodes.push_back(std::move(tempNodes));
             }
+            return bvhNodes;
         }
 
     } // namespace
@@ -135,9 +178,36 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
     void CustomRaytracedGeometryDrawingSubsystem::Update(
         float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::VkStagingBufferResource& stagingBuffer)
-    {}
+    {
+        // Based on the built BVH, create new entities.
+
+        auto& registry = scene.GetRegistry();
+        auto& systemsStorage = scene.GetSystemsStorage();
+        auto  bvhOpt         = systemsStorage.Get<BVH>(BVH_BUFFER_ID);
+        if (!bvhOpt) {
+            auto bvhNodes = buildBVHUsingMorton(scene.GetMeshStorage(), registry);
+            for (auto& nodes : bvhNodes) {
+                for (auto& node : nodes) {
+                    auto entity = registry.create();
+                    node.aabb.originalLower = node.aabb.lower;
+                    node.aabb.originalUpper = node.aabb.upper;
+                    registry.emplace<Components::AABB>(entity, node.aabb);
+                }
+            }
+            BVH bvh{};
+            bvh.nodes = std::move(bvhNodes);
+
+            systemsStorage.Insert(BVH_BUFFER_ID, std::make_unique<BVH>(std::move(bvh)));
+        }
+    }
 
     void CustomRaytracedGeometryDrawingSubsystem::Render(
         float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget)
-    {}
+    {
+        // Setup proper morton codes.
+        // Cleanup BVH creation algorithm.
+        // Run raytracer
+        // Each thread goes into BVH and outputs a colour, only when it hits a triangle.
+        // Run compute shader to copy from buffer to render target
+    }
 } // namespace Prism::Systems::Subsystems::MeshDrawingSystem
