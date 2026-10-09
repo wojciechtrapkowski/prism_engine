@@ -2,6 +2,7 @@
 
 #include "components/aabb.hpp"
 #include "components/mesh.hpp"
+#include "components/camera.hpp"
 
 #include "resources/resource_storage.hpp"
 #include "resources/mesh_resource.hpp"
@@ -14,7 +15,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 {
     namespace
     {
-        struct BVHNode 
+        struct BVHNode
         {
             struct BVHLeaf
             {
@@ -25,7 +26,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 glm::vec3 v1;
                 glm::vec3 v2;
             };
-            
+
             struct BVHIndex
             {
                 uint32_t level;
@@ -34,9 +35,9 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
             constexpr static auto MAX_NUMBER_OF_CHILDREN = 6;
 
-            Components::AABB                            aabb;
+            Components::AABB                             aabb;
             std::array<BVHIndex, MAX_NUMBER_OF_CHILDREN> children;
-            std::optional<BVHLeaf>                      leaf;
+            std::optional<BVHLeaf>                       leaf;
         };
 
         struct BVH : Resources::ResourceImpl<BVH>
@@ -45,8 +46,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         };
 
         // First implementation is on CPU.
-        std::vector<std::vector<BVHNode>>
-        buildBVHUsingMorton(Resources::ResourceStorage& meshStorage, entt::registry& registry)
+        std::vector<std::vector<BVHNode>> buildBVHUsingMorton(Resources::ResourceStorage& meshStorage, entt::registry& registry)
         {
             // We are doing bottom up, so we can't start with the root.
             std::vector<std::vector<BVHNode>> bvhNodes{};
@@ -57,11 +57,27 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             auto meshView = registry.view<Components::Mesh>();
 
             auto convertTriangleToMortonCode = [](glm::vec3 v0, glm::vec3 v1, glm::vec3 v2) {
-                // calculate centroid
-                // quantize
-                // convert to code
+                glm::vec3 centroid = (v0 + v1 + v2) / 3.0f;
 
-                return 0;
+                int        maxValue = std::pow(2, 9) - 1;
+                int        x        = glm::clamp((int)centroid.x, -maxValue, maxValue);
+                int        y        = glm::clamp((int)centroid.x, -maxValue, maxValue);
+                int        z        = glm::clamp((int)centroid.x, -maxValue, maxValue);
+                glm::ivec3 centroidQuantized(x, y, z);
+
+                // intertwine bits like that:
+                // int maskX = 0x00100100100100100100100100100100b;
+                // int maskY = 0x00010010010010010010010010010010b;
+                // int maskZ = 0x00001001001001001001001001001001b;
+
+                int code = 0;
+                for (int i = 0; i < 30; i += 3) {
+                    code = (code << i) | ((x >> (i / 3)) & 0x1b);
+                    code = (code << i + 1) | ((y >> (i / 3)) & 0x1b);
+                    code = (code << i + 2) | ((z >> (i / 3)) & 0x1b);
+                }
+
+                return code;
             };
 
             for (auto&& [meshEntity, meshComponent] : meshView.each()) {
@@ -115,15 +131,15 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 bvhNodes[0].push_back(node);
             }
 
-            int currentIndex = 1;
+            int      currentIndex = 1;
             uint32_t maxHeight    = std::ceil(std::log(bvhNodes[0].size()) / std::log(6)) + 1;
-            while (currentIndex < maxHeight) { 
+            while (currentIndex < maxHeight) {
                 int                  currentCounter = 0;
                 std::vector<BVHNode> tempNodes;
-                tempNodes.reserve(std::log(bvhNodes[currentIndex-1].size()) / std::log(6));
-                Components::AABB     tempAabb;
+                tempNodes.reserve(std::log(bvhNodes[currentIndex - 1].size()) / std::log(6));
+                Components::AABB tempAabb;
                 tempAabb.lower = glm::vec4(std::numeric_limits<float>::max());
-                tempAabb.upper         = glm::vec4(std::numeric_limits<float>::min());
+                tempAabb.upper = glm::vec4(std::numeric_limits<float>::min());
 
                 for (size_t i = 0; i < bvhNodes[currentIndex - 1].size(); i++) {
                     currentCounter++;
@@ -135,13 +151,13 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
                     if (currentCounter % 6 == 0) {
                         // create new node
-                        BVHNode node {};
-                        node.aabb      = tempAabb;
+                        BVHNode node{};
+                        node.aabb = tempAabb;
                         for (int j = 0; j < 6; j++) {
-                            node.children[j].level= currentIndex;
+                            node.children[j].level        = currentIndex;
                             node.children[j].indexInLevel = i - j;
                         }
-                        
+
                         tempAabb.lower = glm::vec4(std::numeric_limits<float>::max());
                         tempAabb.upper = glm::vec4(std::numeric_limits<float>::min());
                         currentCounter = 0;
@@ -156,7 +172,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                     node.aabb = tempAabb;
                     for (int j = 0; j < 6; j++) {
                         node.children[j].level        = currentIndex;
-                        node.children[j].indexInLevel = bvhNodes[currentIndex-1].size() - 1 - j;
+                        node.children[j].indexInLevel = bvhNodes[currentIndex - 1].size() - 1 - j;
                     }
 
                     tempNodes.push_back(node);
@@ -169,10 +185,32 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             return bvhNodes;
         }
 
+        // Maybe VK texture so could you put it into UI?
+        void raytraceScene(Resources::RenderTargetResource& renderTarget, Resources::BVH& bvh, Components::Camera& camera)
+        {
+            constexpr auto RT_WIDTH = 512;
+            constexpr auto RT_HEIGHT = 256;
+
+            // cast a ray, so launch a thread to go over the BVH.
+            // if it hits a leaf, take its vertices, convert to screen space and colour the pixel.
+            // more alpha where more rays hit.
+
+            glm::mat4 invProj = glm::inverse(camera.projection);
+            glm::mat4 invView = glm::inverse(camera.view);
+            for (size_t row=0; row<RT_HEIGHT; row++) {
+                for (size_t col=0; col<RT_WIDTH; col++) {
+                    // convert screen space row, col into world space.
+                    // so multiply by inverse proj view.
+                    // cast a ray from camera to this point in world space.
+
+                    // r(t) = at + b;
+                }
+            }
+        }
     } // namespace
 
     CustomRaytracedGeometryDrawingSubsystem::CustomRaytracedGeometryDrawingSubsystem(Resources::ContextResources& contextResources) :
-        _contextResources(contextResources) {};
+        _contextResources(contextResources){};
 
     CustomRaytracedGeometryDrawingSubsystem::~CustomRaytracedGeometryDrawingSubsystem() {}
 
@@ -181,14 +219,14 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
     {
         // Based on the built BVH, create new entities.
 
-        auto& registry = scene.GetRegistry();
+        auto& registry       = scene.GetRegistry();
         auto& systemsStorage = scene.GetSystemsStorage();
         auto  bvhOpt         = systemsStorage.Get<BVH>(BVH_BUFFER_ID);
         if (!bvhOpt) {
             auto bvhNodes = buildBVHUsingMorton(scene.GetMeshStorage(), registry);
             for (auto& nodes : bvhNodes) {
                 for (auto& node : nodes) {
-                    auto entity = registry.create();
+                    auto entity             = registry.create();
                     node.aabb.originalLower = node.aabb.lower;
                     node.aabb.originalUpper = node.aabb.upper;
                     registry.emplace<Components::AABB>(entity, node.aabb);
@@ -204,8 +242,6 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
     void CustomRaytracedGeometryDrawingSubsystem::Render(
         float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget)
     {
-        // Setup proper morton codes.
-        // Cleanup BVH creation algorithm.
         // Run raytracer
         // Each thread goes into BVH and outputs a colour, only when it hits a triangle.
         // Run compute shader to copy from buffer to render target
