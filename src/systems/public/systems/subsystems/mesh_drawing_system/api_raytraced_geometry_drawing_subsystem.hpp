@@ -15,17 +15,17 @@
 
 namespace Prism::Systems::Subsystems::MeshDrawingSystem
 {
-    struct RaytracedGeometryDrawingSubsystem
+    struct APIRaytracedGeometryDrawingSubsystem
     {
     public:
-        RaytracedGeometryDrawingSubsystem(Resources::ContextResources& contextResources);
-        ~RaytracedGeometryDrawingSubsystem();
+        APIRaytracedGeometryDrawingSubsystem(Resources::ContextResources& contextResources);
+        ~APIRaytracedGeometryDrawingSubsystem();
 
-        RaytracedGeometryDrawingSubsystem(RaytracedGeometryDrawingSubsystem& other)            = delete;
-        RaytracedGeometryDrawingSubsystem& operator=(RaytracedGeometryDrawingSubsystem& other) = delete;
+        APIRaytracedGeometryDrawingSubsystem(APIRaytracedGeometryDrawingSubsystem& other)            = delete;
+        APIRaytracedGeometryDrawingSubsystem& operator=(APIRaytracedGeometryDrawingSubsystem& other) = delete;
 
-        RaytracedGeometryDrawingSubsystem(RaytracedGeometryDrawingSubsystem&& other)            = delete;
-        RaytracedGeometryDrawingSubsystem& operator=(RaytracedGeometryDrawingSubsystem&& other) = delete;
+        APIRaytracedGeometryDrawingSubsystem(APIRaytracedGeometryDrawingSubsystem&& other)            = delete;
+        APIRaytracedGeometryDrawingSubsystem& operator=(APIRaytracedGeometryDrawingSubsystem&& other) = delete;
 
         void Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::VkStagingBufferResource& stagingBuffer);
 
@@ -41,20 +41,22 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             uint32_t _pad[3];
         };
 
-        inline static const Resources::Resource::ID SBT_BUFFER_ID = std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/SBTBufferId");
+        inline static const Resources::Resource::ID SBT_BUFFER_ID = std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/SBTBufferId");
 
         inline static const Resources::Resource::ID TLAS_INSTANCES_BUFFER_ID =
-            std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/TLASInstancesBufferId");
-        inline static const Resources::Resource::ID TLAS_ACCEL_STRUCT_ID = std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/TLASAccelStructId");
+            std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/TLASInstancesBufferId");
+        inline static const Resources::Resource::ID TLAS_ACCEL_STRUCT_ID =
+            std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/TLASAccelStructId");
         inline static const Resources::Resource::ID TLAS_SCRATCH_BUFFER_ID =
-            std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/TLASScratchBufferId");
+            std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/TLASScratchBufferId");
 
-        inline static const Resources::Resource::ID MESH_BLAS_ID_PREFIX = std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/MeshBlasIdPrefix");
+        inline static const Resources::Resource::ID MESH_BLAS_ID_PREFIX =
+            std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/MeshBlasIdPrefix");
         inline static const Resources::Resource::ID MESH_BLAS_SCRATCH_BUFFER_ID_PREFIX =
-            std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/MeshBlasScratchBufferIdPrefix");
+            std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/MeshBlasScratchBufferIdPrefix");
 
         inline static const Resources::Resource::ID MESHES_INFOS_BUFFER_ID =
-            std::hash<std::string_view>{}("RaytracedGeometryDrawingSubsystem/MeshesInfosBufferId");
+            std::hash<std::string_view>{}("APIRaytracedGeometryDrawingSubsystem/MeshesInfosBufferId");
 
         Resources::ContextResources& _contextResources;
 

@@ -7,7 +7,8 @@ namespace Prism::Components
         enum class MeshDrawingMode
         {
             RASTERIZATION,
-            RAYTRACING
+            API_RAYTRACING,
+            CUSTOM_RAYTRACING
         } drawingMode = MeshDrawingMode::RASTERIZATION;
     };
 } // namespace Prism::Components

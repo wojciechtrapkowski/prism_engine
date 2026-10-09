@@ -293,7 +293,13 @@ namespace Prism::Loaders
         std::filesystem::path filePath(path);
         auto                  fileName = filePath.stem().string();
 
-        Resources::MeshResource meshResource{fileName, std::move(vertexBuffer), std::move(indexBuffer), std::move(textureOpt)};
+        Resources::MeshResource meshResource{
+            fileName,
+            std::move(vertexBuffer),
+            std::move(indexBuffer),
+            std::move(loadedModelDescriptor.vertices),
+            std::move(loadedModelDescriptor.indices),
+            std::move(textureOpt)};
 
         return {std::make_unique<Resources::MeshResource>(std::move(meshResource))};
     }
