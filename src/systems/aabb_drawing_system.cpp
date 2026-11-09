@@ -8,6 +8,7 @@
 #include "resources/common_resource.hpp"
 
 #include "components/aabb.hpp"
+#include "components/systems_settings.hpp"
 
 #include "utils/vulkan/common.hpp"
 
@@ -203,7 +204,7 @@ namespace Prism::Systems
             // Depth and stencil state
             VkPipelineDepthStencilStateCreateInfo depthStencilState{};
             depthStencilState.sType            = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-            depthStencilState.depthTestEnable  = VK_TRUE;
+            depthStencilState.depthTestEnable  = VK_FALSE;
             depthStencilState.depthWriteEnable = VK_TRUE;
             depthStencilState.depthCompareOp   = VK_COMPARE_OP_LESS_OR_EQUAL;
 
@@ -364,6 +365,13 @@ namespace Prism::Systems
 
         auto& vmaAllocator = _contextResources.GetVulkanResource().GetVmaAllocator();
 
+        auto aabbDrawingSystemSettingsView = registry.view<Components::AABBDrawingSystemSettings>();
+        if (aabbDrawingSystemSettingsView.empty()) {
+            auto aabbDrawingSystemsSettingsEntity = registry.create();
+            registry.emplace<Components::AABBDrawingSystemSettings>(aabbDrawingSystemsSettingsEntity);
+        }
+
+
         auto aabbView = registry.view<Components::AABB>();
         if (aabbView.empty()) {
             vkEndCommandBuffer(commandBuffer);
@@ -472,9 +480,15 @@ namespace Prism::Systems
 
         auto& resourceStorage = _contextResources.GetResourceStorage();
         auto& vulkanResource  = _contextResources.GetVulkanResource();
+        
+        auto aabbDrawingSystemSettingsView = registry.view<Components::AABBDrawingSystemSettings>();
+        if (aabbDrawingSystemSettingsView.empty()) {
+            throw std::runtime_error("Couldn't get AABB drawing system settings!");
+        }
+        auto& aabbDrawingSystemSettings = registry.get<Components::AABBDrawingSystemSettings>(aabbDrawingSystemSettingsView.front());
 
         auto aabbView = registry.view<Components::AABB>();
-        if (aabbView.empty()) {
+        if (aabbView.empty() || aabbDrawingSystemSettings.disable) {
             vkEndCommandBuffer(commandBuffer);
             return;
         }

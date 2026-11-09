@@ -7,6 +7,7 @@ set(EVENTS_HEADERS
     public/events/app_events.hpp
     public/events/move_events.hpp
     public/events/file_events.hpp
+    public/events/raytrace_events.hpp
 )
 
 add_library(${PRISM_EVENTS_LIBRARY_NAME} INTERFACE

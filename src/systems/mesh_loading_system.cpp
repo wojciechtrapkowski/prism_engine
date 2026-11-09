@@ -42,7 +42,7 @@ namespace Prism::Systems
             registry.emplace<Components::Name>(lightEntity, "Light");
 
             Loaders::MeshLoader meshLoader;
-            auto backpackModelOpt = meshLoader(_contextResources.GetVulkanResource(), commandBuffer, stagingBuffer, "models/backpack-texture/scene.gltf");
+            /*auto backpackModelOpt = meshLoader(_contextResources.GetVulkanResource(), commandBuffer, stagingBuffer, "../models/backpack-texture/scene.gltf");
             if (!backpackModelOpt) {
                 std::cerr << "Couldn't load backpack model!" << std::endl;
             } else {
@@ -51,9 +51,9 @@ namespace Prism::Systems
 
                 auto& meshStorage = scene.GetMeshStorage();
                 meshStorage.Insert<Resources::MeshResource>(backpackId, std::move(backpackModel));
-            }
+            }*/
 
-            auto cubeModelOpt = meshLoader(_contextResources.GetVulkanResource(), commandBuffer, stagingBuffer, "models/backpack.obj");
+            auto cubeModelOpt = meshLoader(_contextResources.GetVulkanResource(), commandBuffer, stagingBuffer, "../models/backpack.obj");
             if (!cubeModelOpt) {
                 std::cerr << "Couldn't load cube model!" << std::endl;
             } else {
