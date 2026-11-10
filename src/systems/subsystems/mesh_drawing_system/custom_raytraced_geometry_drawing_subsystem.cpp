@@ -22,6 +22,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 {
     namespace
     {
+        constexpr auto EPSILON          = 0.0001f;
         constexpr auto MAX_BVH_CHILDREN = 6;
 
         bool operator>=(glm::vec4& a, glm::vec4 b)
@@ -226,6 +227,10 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
         std::vector<uint32_t> raytraceScene(entt::registry& registry, std::vector<std::reference_wrapper<BVH>> bvhsToTraverse, std::vector<entt::entity> meshEntities, entt::entity cameraEntity, int width, int height)
         {
+            // TODO: Take from settings.
+            constexpr float T_MIN = 0.0f;
+            constexpr float T_MAX = std::numeric_limits<float>::max();
+
             // We don't perform a check here, it was checked at the caller's side.
             Components::Camera& camera = registry.get<Components::Camera>(cameraEntity);
             Components::Transform& cameraTransform = registry.get<Components::Transform>(cameraEntity);
@@ -234,11 +239,49 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             std::vector<uint32_t> output;
             output.resize(width * height);
 
-            const auto checkRayWithAABBCollision = [](Ray& ray, Components::AABB& aabb) {
-                // TODO: Take from settings.
-                constexpr float T_MIN = 0.0f;
-                constexpr float T_MAX = std::numeric_limits<float>::max();
-                
+            const auto checkRayWithTriangleCollision = [T_MIN, T_MAX](Ray& ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v2) { 
+                // Based on: https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle//moller-trumbore-ray-triangle-intersection.html.
+
+                glm::vec3 v0v1 = v1 - v0;
+                glm::vec3 v0v2 = v2 - v0;
+                glm::vec3 t    = glm::vec3(ray.origin) - v0;
+
+                glm::vec3 p = glm::cross(glm::vec3(ray.direction), v0v2);
+                glm::vec3 q = glm::cross(t, v0v1);
+
+                float det = (glm::dot(p, v0v1));
+
+                // Back face culling + parallel ray handling (no intersection case).
+                if (det < EPSILON) {
+                    return false;
+                }
+
+                float invDet = 1 / det;
+
+                float tResult = invDet * glm::dot(q, v0v2);
+                float uResult = invDet * glm::dot(p, t);
+                float vResult = invDet * glm::dot(q, glm::vec3(ray.direction));
+
+                if (tResult < 0.0f) {
+                    return false;    
+                }
+
+                if (tResult > T_MAX) {
+                    return false;
+                }
+
+                if (uResult < 0.0f || uResult > 1.0f) {
+                    return false;
+                }
+
+                if (vResult < 0.0f || uResult + vResult > 1.0f) {
+                    return false;
+                }
+
+                return true;
+            };
+
+            const auto checkRayWithAABBCollision = [T_MIN, T_MAX](Ray& ray, Components::AABB& aabb) {
                 // smit's slab method. TODO: improve it based on the paper.
                 
                 // r(t) = dt + o;
@@ -313,7 +356,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 return tMin <= tMax;
             };
 
-            const auto& dfs = [checkRayWithAABBCollision](BVH& bvh, Ray& ray) -> size_t {
+            const auto& dfs = [checkRayWithAABBCollision, checkRayWithTriangleCollision](BVH& bvh, Ray& ray) -> size_t {
                 if (bvh.nodes.empty()) {
                     return 0;
                 }
@@ -347,7 +390,9 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
                     if (hit) {
                         if (currentNode.leaf) {
-                            currentHits++;
+                            if (checkRayWithTriangleCollision(ray, currentNode.leaf->v0, currentNode.leaf->v1, currentNode.leaf->v2)) {
+                                currentHits++; 
+                            }
                             //std::cout << std::format("[DFS] Found leaf! Total hits: {}\n", currentHits);
                         } else {
                             //std::cout << "[DFS] Internal node, pushing children to stack:\n";
