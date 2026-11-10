@@ -5,6 +5,7 @@
 #include "components/camera.hpp"
 #include "components/transform.hpp"
 #include "components/tags.hpp"
+#include "components/systems_settings.hpp"
 
 #include "resources/resource_storage.hpp"
 #include "resources/mesh_resource.hpp"
@@ -21,9 +22,6 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 {
     namespace
     {
-        // TODO: This should be tunable.
-        constexpr auto RT_WIDTH         = 512;
-        constexpr auto RT_HEIGHT        = 256;
         constexpr auto MAX_BVH_CHILDREN = 6;
 
         bool operator>=(glm::vec4& a, glm::vec4 b)
@@ -226,12 +224,15 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             return bvhNodes;
         }
 
-        std::vector<uint32_t>
-        raytraceScene(std::vector<std::reference_wrapper<BVH>> bvhsToTraverse, Components::Camera& camera, Components::Transform& cameraTransform)
+        std::vector<uint32_t> raytraceScene(entt::registry& registry, std::vector<std::reference_wrapper<BVH>> bvhsToTraverse, std::vector<entt::entity> meshEntities, entt::entity cameraEntity, int width, int height)
         {
+            // We don't perform a check here, it was checked at the caller's side.
+            Components::Camera& camera = registry.get<Components::Camera>(cameraEntity);
+            Components::Transform& cameraTransform = registry.get<Components::Transform>(cameraEntity);
+
             // Row major.
             std::vector<uint32_t> output;
-            output.resize(RT_HEIGHT * RT_WIDTH);
+            output.resize(width * height);
 
             const auto checkRayWithAABBCollision = [](Ray& ray, Components::AABB& aabb) {
                 // TODO: Take from settings.
@@ -368,14 +369,14 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
             glm::mat4 invProj = glm::inverse(camera.projection);
             glm::mat4 invView = glm::inverse(camera.view);
-            for (size_t row = 0; row < RT_HEIGHT; row++) {
-                for (size_t col = 0; col < RT_WIDTH; col++) {
+            for (size_t row = 0; row < height; row++) {
+                for (size_t col = 0; col < width; col++) {
                     // Sample center of pixels.
                     glm::vec4 position = glm::vec4(static_cast<float>(col) + 0.5f, static_cast<float>(row + 0.5f), 0.5f, 1.0f);
 
                     // Convert screen space to NDC.
-                    position.x = (position.x / RT_WIDTH) * 2.0 - 1.0;
-                    position.y = 1.0f - (position.y / RT_HEIGHT) * 2.0; // Vulkan Y negation.
+                    position.x = (position.x / width) * 2.0 - 1.0;
+                    position.y = 1.0f - (position.y / height) * 2.0; // Vulkan Y negation.
 
                     // Convert to clip & world space.
                     position = invView * invProj * position;
@@ -392,6 +393,16 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
                     uint32_t color = 0;
                     for (int i = 0; i < bvhsToTraverse.size(); i++) {
+                        // We need to transform ray. By inverse of the transform of the mesh, so that ray is in its local space.
+                        auto currentMeshEntity = meshEntities[i];
+                        if (registry.all_of<Components::Transform>(currentMeshEntity)) {
+                            auto& transform = registry.get<Components::Transform>(currentMeshEntity);
+                            
+                            ray.origin    = glm::inverse(transform.transform) * ray.origin;
+                            ray.direction = glm::normalize(glm::inverse(transform.transform) * ray.direction);
+                        }
+
+
                         auto hitsCount = dfs(bvhsToTraverse[i], ray);
 
                         color |= hitsCount > 0 ? 255 : 0;         // r
@@ -401,7 +412,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                         
                     }
 
-                    output[row * RT_WIDTH + col] = color;
+                    output[row * width + col] = color;
                 }
             }
 
@@ -428,6 +439,12 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         auto& registry       = scene.GetRegistry();
         auto& systemsStorage = scene.GetSystemsStorage();
         auto& meshStorage    = scene.GetMeshStorage();
+
+        Components::MeshDrawingSystemSettings meshDrawingSystemSettings{};
+        auto meshDrawingSystemSettingsView = registry.view<Components::MeshDrawingSystemSettings>();
+        if (!meshDrawingSystemSettingsView.empty()) {
+            meshDrawingSystemSettings = registry.get<Components::MeshDrawingSystemSettings>(meshDrawingSystemSettingsView.front());
+        }
 
         auto getMeshBVHBufferId = [](auto& resourceId) {
             return std::hash<std::string_view>{}(std::format("{}/{}", MESH_BVH_BUFFER_ID_PREFIX, std::to_string(resourceId)));
@@ -461,11 +478,13 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         auto activeCameraView = registry.view<Components::Tags::ActiveCamera>();
 
         std::vector<std::reference_wrapper<BVH>> bvhsToTraverse;
+        std::vector<entt::entity>                meshEntities;
         for (auto&& [entity, meshComponent] : meshView.each()) {
             auto id     = getMeshBVHBufferId(meshComponent.resourceId);
             auto bvhOpt = systemsStorage.Get<BVH>(id);
             if (bvhOpt) {
                 bvhsToTraverse.push_back(bvhOpt.value());
+                meshEntities.push_back(entity);
             }
         }
 
@@ -479,13 +498,16 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         runCPURaytrace &= registry.all_of<Components::Camera, Components::Transform>(cameraEntity);
 
         if (runCPURaytrace) {
-            auto& cameraComponent    = registry.get<Components::Camera>(cameraEntity);
-            auto& transformComponent = registry.get<Components::Transform>(cameraEntity);
+            auto height         = meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingHeight;
+            auto width          = meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingWidth;
 
-            auto raytraceResult = raytraceScene(bvhsToTraverse, cameraComponent, transformComponent);
-
-            auto height = RT_HEIGHT;
-            auto width  = RT_WIDTH;
+            auto raytraceResult = raytraceScene(
+                registry,
+                bvhsToTraverse,
+                meshEntities,
+                cameraEntity,
+                width,
+                height);
 
             const VkDeviceSize imageSize = static_cast<VkDeviceSize>(width * height * 4); // 4 bytes.
 
@@ -511,7 +533,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 throw std::runtime_error("Error: couldn't create image from raytracing result.");
             }
 
-            Resources::VkImageResource imageResource(vulkanResource.GetVmaAllocator(), textureAllocation, textureImage);
+            Resources::VkImageResource imageResource(vulkanResource.GetVmaAllocator(), textureAllocation, textureImage, width, height);
 
             VkImageMemoryBarrier barrierToTransfer{};
             barrierToTransfer.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -587,7 +609,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
             auto imguiTextureId =
                 ImGui_ImplVulkan_AddTexture(textureResource.GetSampler(), textureResource.GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-            _contextResources.GetDispatcher().enqueue<Events::CPURaytraceFinishedEvent>(imguiTextureId);
+            _contextResources.GetDispatcher().enqueue<Events::CPURaytraceFinishedEvent>(imguiTextureId, textureResource.GetWidth(), textureResource.GetHeight());
         }
         _cpuRaytraceStartEventToProcessOpt = std::nullopt;
     }

@@ -13,7 +13,9 @@ namespace Prism::Components
 
         struct
         {
-            int selectedCPURaytraceResult;
+            int selectedCPURaytraceResult = 0;
+            int raytracingWidth           = 512;
+            int raytracingHeight          = 256;            
         } customRaytracedGeometryDrawingSystemSettings;
     };
 

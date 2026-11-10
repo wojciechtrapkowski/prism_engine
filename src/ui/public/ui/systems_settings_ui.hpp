@@ -27,8 +27,8 @@ namespace Prism::UI
         Resources::ContextResources& _contextResources;
 
         entt::scoped_connection    _onCpuRaytraceFinishedScopedConnection;
-        std::optional<ImTextureID> _cpuRaytraceFinishedOpt;
-        std::vector<ImTextureID>   _cpuRaytraceResults;
+        std::optional<Events::CPURaytraceFinishedEvent> _cpuRaytraceFinishedOpt;
+        std::vector<Events::CPURaytraceFinishedEvent>   _cpuRaytraceResults;
 
         bool _isTraceOpen = false;
 

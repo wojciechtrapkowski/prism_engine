@@ -59,6 +59,9 @@ namespace Prism::UI
                 if (ImGui::Button("Run ray trace")) {
                     _contextResources.GetDispatcher().enqueue<Events::CPURaytraceStartEvent>();
                 }
+
+                ImGui::SliderInt("Raytracing Width", &meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingWidth, 1, 3840);
+                ImGui::SliderInt("Raytracing Height", &meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingHeight, 1, 2160);
             }
 
             // Always visible, so we can compare.
@@ -84,9 +87,10 @@ namespace Prism::UI
 
                 if (_isTraceOpen) {
                     if (ImGui::Begin("Raytrace Result", &_isTraceOpen)) {
-                        ImVec2 imageSize(512, 256); // TODO: FIX!
+                        auto&  traceResult = _cpuRaytraceResults[currentTrace];
+                        ImVec2 imageSize(traceResult.width, traceResult.height); 
 
-                        ImGui::Image((ImTextureID)_cpuRaytraceResults[currentTrace], imageSize);
+                        ImGui::Image((ImTextureID)traceResult.textureId, imageSize);
                     }
                     ImGui::End();
                 }
@@ -118,6 +122,6 @@ namespace Prism::UI
 
     void SystemsSettingsUI::onCPURaytraceFinishEvent(Events::CPURaytraceFinishedEvent& event)
     {
-        _cpuRaytraceFinishedOpt = (ImTextureID)event.textureId;
+        _cpuRaytraceFinishedOpt = event;
     }
 } // namespace Prism::UI

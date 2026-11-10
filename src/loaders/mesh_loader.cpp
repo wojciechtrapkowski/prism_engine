@@ -181,7 +181,7 @@ namespace Prism::Loaders
                 return std::nullopt;
             }
 
-            Resources::VkImageResource imageResource(vulkanResource.GetVmaAllocator(), textureAllocation, textureImage);
+            Resources::VkImageResource imageResource(vulkanResource.GetVmaAllocator(), textureAllocation, textureImage, width, height);
 
             VkImageMemoryBarrier barrierToTransfer{};
             barrierToTransfer.sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
