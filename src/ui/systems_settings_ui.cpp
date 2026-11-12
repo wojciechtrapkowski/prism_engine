@@ -62,7 +62,13 @@ namespace Prism::UI
 
                 ImGui::SliderInt("Raytracing Width", &meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingWidth, 1, 3840);
                 ImGui::SliderInt("Raytracing Height", &meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingHeight, 1, 2160);
-            }
+
+            std::vector<const char*> builderItems = {"Morton", "SAH"};
+                int currentItem = static_cast<int>(meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder);
+                if (ImGui::Combo("Builder", &currentItem, builderItems.data(), static_cast<int>(builderItems.size()))) {
+                    meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder = static_cast<Components::MeshDrawingSystemSettings::CustomRaytracedGeometryDrawingSystemSettings::Builder>(currentItem);
+                }
+        }
 
             // Always visible, so we can compare.
             if (!_cpuRaytraceResults.empty()) {
