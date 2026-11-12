@@ -26,6 +26,7 @@ namespace Prism::Resources
 
         entt::registry&             GetRegistry() { return _registry; }
         Resources::ResourceStorage& GetMeshStorage() { return _meshStorage; }
+        Resources::ResourceStorage& GetSystemsStorage() { return _systemsStorage; }
 
     private:
         entt::registry _registry;

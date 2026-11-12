@@ -70,5 +70,6 @@
         "iterator": "cpp",
         "__availability": "cpp",
         "shared_mutex": "cpp"
-    }
+    },
+    "terminal.integrated.stickyScroll.enabled": false
 }

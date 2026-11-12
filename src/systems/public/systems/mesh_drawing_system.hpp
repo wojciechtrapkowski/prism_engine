@@ -10,7 +10,8 @@ namespace Prism::Systems
     namespace Subsystems::MeshDrawingSystem
     {
         class RasterizedGeometryDrawingSubsystem;
-        class RaytracedGeometryDrawingSubsystem;
+        class APIRaytracedGeometryDrawingSubsystem;
+        class CustomRaytracedGeometryDrawingSubsystem;
     } // namespace Subsystems::MeshDrawingSystem
     class MeshDrawingSystem
     {
@@ -31,7 +32,8 @@ namespace Prism::Systems
     private:
         Resources::ContextResources& _contextResources;
 
-        std::unique_ptr<Subsystems::MeshDrawingSystem::RasterizedGeometryDrawingSubsystem> _rasterizedGeometryDrawingSubsystem;
-        std::unique_ptr<Subsystems::MeshDrawingSystem::RaytracedGeometryDrawingSubsystem>  _raytracedGeometryDrawingSubsystem;
+        std::unique_ptr<Subsystems::MeshDrawingSystem::RasterizedGeometryDrawingSubsystem>      _rasterizedGeometryDrawingSubsystem;
+        std::unique_ptr<Subsystems::MeshDrawingSystem::APIRaytracedGeometryDrawingSubsystem>    _apiRaytracedGeometryDrawingSubsystem;
+        std::unique_ptr<Subsystems::MeshDrawingSystem::CustomRaytracedGeometryDrawingSubsystem> _customRaytracedGeometryDrawingSubsystem;
     };
 }; // namespace Prism::Systems

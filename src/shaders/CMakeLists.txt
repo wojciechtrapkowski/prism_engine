@@ -57,7 +57,7 @@ macro(create_shader FILE)
 endmacro()
 
 # Automatically find all shaders in the source folder
-file(GLOB_RECURSE SHADER_FILES
+file(GLOB_RECURSE SHADER_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.vert"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.frag"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.comp"

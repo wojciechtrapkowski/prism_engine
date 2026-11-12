@@ -2,8 +2,8 @@
 
 namespace Prism::Resources
 {
-    VkImageResource::VkImageResource(VmaAllocator allocator, VmaAllocation allocation, VkImage image) :
-        _allocator(allocator), _allocation(allocation), _image(image)
+    VkImageResource::VkImageResource(VmaAllocator allocator, VmaAllocation allocation, VkImage image, int width, int height) :
+        _allocator(allocator), _allocation(allocation), _image(image), _width(width), _height(height)
     {}
 
     VkImageResource::~VkImageResource()
@@ -37,5 +37,7 @@ namespace Prism::Resources
         swap(first._allocator, second._allocator);
         swap(first._allocation, second._allocation);
         swap(first._image, second._image);
+        swap(first._width, second._width);
+        swap(first._height, second._height);
     }
 } // namespace Prism::Resources
