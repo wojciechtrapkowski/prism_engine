@@ -15,24 +15,32 @@ namespace Prism::Resources
         // This should be transformed so it supports instances as well as quad leaves.
         struct BVHLeaf
         {
-            uint32_t triangleId;
+            uint32_t  triangleId;
             glm::vec3 v0;
             glm::vec3 v1;
             glm::vec3 v2;
         };
 
+        struct AABB
+        {
+            glm::vec4 lower;
+            glm::vec4 upper;
+
+            AABB()
+            {
+                lower = glm::vec4{std::numeric_limits<float>::max()};
+                upper = glm::vec4{std::numeric_limits<float>::lowest()};
+            };
+            AABB(glm::vec4 l, glm::vec4 u) : lower(l), upper(u){};
+        };
+
         struct BVHNode
         {
-            struct
-            {
-                glm::vec4 lower;
-                glm::vec4 upper;
-            } aabb;
-
+            AABB                  aabb;
             std::vector<uint32_t> children; // always positive offsets, from this node to children.
             uint32_t              numChildren;
 
-            std::optional<BVHLeaf> leaf;
+            std::vector<BVHLeaf> leaves;
         };
 
         CPUBVHResource(std::vector<BVHNode> nodes);

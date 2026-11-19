@@ -173,9 +173,11 @@ namespace Prism::Loaders
                 }
 
                 if (hit) {
-                    if (currentNode.leaf) {
-                        if (checkRayWithTriangleIntersection(ray, currentNode.leaf->v0, currentNode.leaf->v1, currentNode.leaf->v2)) {
-                            currentHits++;
+                    if (!currentNode.leaves.empty()) {
+                        for (auto& leaf : currentNode.leaves) {
+                            if (checkRayWithTriangleIntersection(ray, leaf.v0, leaf.v1, leaf.v2)) {
+                                currentHits++;
+                            }
                         }
                         // std::cout << std::format("[DFS] Found leaf! Total hits: {}\n", currentHits);
                     } else {
@@ -199,7 +201,7 @@ namespace Prism::Loaders
 
     // In the future, with TLAS accept just one BVH.
     CPURaytraceResultLoader::result_type CPURaytraceResultLoader::operator()(
-        CPURaytraceResultLoader::CPURaytraceSettings&                    settings,
+        CPURaytraceResultLoader::CPURaytraceSettings&                   settings,
         std::vector<std::reference_wrapper<Resources::CPUBVHResource>>& bvhsToTraverse,
         std::vector<glm::mat4>&                                         transforms) const
     {

@@ -71,7 +71,7 @@ namespace Prism::Loaders
             glm::vec4 upper = glm::vec4(glm::max(v0, glm::max(v1, v2)), 1.0);
 
             BVHNode node{};
-            node.leaf       = std::move(leaf);
+            node.leaves.push_back(std::move(leaf));
             node.aabb.lower = std::move(lower);
             node.aabb.upper = std::move(upper);
             node.children   = {};
