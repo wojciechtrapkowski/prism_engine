@@ -6,6 +6,10 @@ namespace Prism::Loaders
 {
     namespace
     {
+        using AABB    = Resources::CPUBVHResource::AABB;
+        using BVHNode = Resources::CPUBVHResource::BVHNode;
+        using BVHLeaf = Resources::CPUBVHResource::BVHLeaf;
+
         constexpr auto MAX_BVH_CHILDREN = 6;
 
         uint32_t convertTriangleToMortonCode(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, glm::vec4 sceneAABBLower, glm::vec4 sceneAABBUpper)
@@ -34,96 +38,165 @@ namespace Prism::Loaders
 
             return code;
         }
+
+        std::vector<BVHLeaf> convertPrimitivesToMortonCodes(Resources::MeshResource& mesh, glm::vec4 meshAABBLower, glm::vec4 meshAABBUpper)
+        {
+            std::vector<BVHLeaf> bvhLeaves{};
+
+            std::vector<std::pair<uint32_t, BVHLeaf>> bvhMortonCodeLeaves{};
+
+            auto& meshIndices  = mesh.GetIndices();
+            auto& meshVertices = mesh.GetVertices();
+
+            for (size_t i = 0; i < meshIndices.size(); i += 3) {
+                auto idx0 = meshIndices[i].idx;
+                auto idx1 = meshIndices[i + 1].idx;
+                auto idx2 = meshIndices[i + 2].idx;
+
+                glm::vec3 v0 = meshVertices[idx0].position;
+                glm::vec3 v1 = meshVertices[idx1].position;
+                glm::vec3 v2 = meshVertices[idx2].position;
+
+                uint32_t mortonCode = convertTriangleToMortonCode(v0, v1, v2, meshAABBLower, meshAABBUpper);
+
+                auto triangleId = i / 3;
+
+                BVHLeaf leaf{};
+                leaf.triangleId = triangleId;
+                leaf.v0         = v0;
+                leaf.v1         = v1;
+                leaf.v2         = v2;
+
+                bvhMortonCodeLeaves.push_back(std::make_pair(mortonCode, std::move(leaf)));
+            }
+
+            std::sort(bvhMortonCodeLeaves.begin(), bvhMortonCodeLeaves.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+            bvhLeaves.reserve(bvhMortonCodeLeaves.size());
+
+            for (const auto& [mortonCode, leaf] : bvhMortonCodeLeaves) {
+                bvhLeaves.push_back(leaf);
+            }
+
+            return bvhLeaves;
+        }
+
+        std::vector<BVHNode> buildBVHUsingSimpleMorton(Resources::MeshResource& mesh, glm::vec4 meshAABBLower, glm::vec4 meshAABBUpper)
+        {
+            std::vector<BVHNode> bvhNodes{};
+
+            std::vector<std::pair<uint32_t, BVHNode>> bvhLeaves{};
+
+            auto& meshIndices  = mesh.GetIndices();
+            auto& meshVertices = mesh.GetVertices();
+            for (size_t i = 0; i < meshIndices.size(); i += 3) {
+                auto idx0 = meshIndices[i].idx;
+                auto idx1 = meshIndices[i + 1].idx;
+                auto idx2 = meshIndices[i + 2].idx;
+
+                glm::vec3 v0 = meshVertices[idx0].position;
+                glm::vec3 v1 = meshVertices[idx1].position;
+                glm::vec3 v2 = meshVertices[idx2].position;
+
+                uint32_t mortonCode = convertTriangleToMortonCode(v0, v1, v2, meshAABBLower, meshAABBUpper);
+
+                auto triangleId = i / 3;
+
+                BVHLeaf leaf{};
+                leaf.triangleId = triangleId;
+                leaf.v0         = v0;
+                leaf.v1         = v1;
+                leaf.v2         = v2;
+
+                glm::vec4 lower = glm::vec4(glm::min(v0, glm::min(v1, v2)), 1.0);
+                glm::vec4 upper = glm::vec4(glm::max(v0, glm::max(v1, v2)), 1.0);
+
+                BVHNode node{};
+                node.leaves.push_back(std::move(leaf));
+                node.aabb.lower = std::move(lower);
+                node.aabb.upper = std::move(upper);
+                node.children   = {};
+
+                bvhLeaves.push_back(std::make_pair(mortonCode, std::move(node)));
+            }
+
+            std::sort(bvhLeaves.begin(), bvhLeaves.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+            // Now we can create our BVH - leaves are sorted by Morton codes.
+            bvhNodes.reserve(bvhLeaves.size()); // This could be improved.
+
+            std::vector<size_t> currentLevel;
+            currentLevel.reserve(bvhNodes.size());
+            for (const auto& [mortonCode, node] : bvhLeaves) {
+                currentLevel.push_back(bvhNodes.size());
+                bvhNodes.push_back(node);
+            }
+
+            while (currentLevel.size() > 1) {
+                std::vector<size_t> nextLevel;
+
+                while (!currentLevel.empty()) {
+                    auto numChildren = std::min(currentLevel.size(), static_cast<size_t>(MAX_BVH_CHILDREN));
+
+                    auto parentIndex = bvhNodes.size();
+
+                    BVHNode parentNode{};
+                    parentNode.aabb.lower = glm::vec4(std::numeric_limits<float>::max());
+                    parentNode.aabb.upper = glm::vec4(std::numeric_limits<float>::lowest());
+
+                    parentNode.numChildren = numChildren;
+                    parentNode.children.resize(numChildren);
+
+                    for (size_t i = 0; i < numChildren; i++) {
+                        auto childIndex = currentLevel.back();
+                        currentLevel.pop_back();
+
+                        auto& child           = bvhNodes[childIndex];
+                        parentNode.aabb.lower = glm::min(parentNode.aabb.lower, child.aabb.lower);
+                        parentNode.aabb.upper = glm::max(parentNode.aabb.upper, child.aabb.upper);
+
+                        parentNode.children[i] = parentIndex - childIndex;
+                    }
+                    bvhNodes.push_back(std::move(parentNode));
+                    nextLevel.push_back(parentIndex);
+                }
+
+                currentLevel = std::move(nextLevel);
+            }
+
+            std::reverse(bvhNodes.begin(), bvhNodes.end());
+
+            return bvhNodes;
+        }
+
+        std::vector<BVHNode> buildBVHUsingKarrasMorton(Resources::MeshResource& mesh, glm::vec4 meshAABBLower, glm::vec4 meshAABBUpper)
+        {
+            std::vector<BVHNode> bvhNodes;
+
+            uint32_t primitiveCount    = mesh.GetIndices().size() / 3;
+            uint32_t internalNodeCount = primitiveCount - 1;
+
+            // Could be parallelized
+            for (int i = 0; i < internalNodeCount; i++) {
+                // Check direction - clamp it obviously. XOR with i - 1 and i + 1, and pick the one that we have more trailing zeros with.
+                // This is will be the end or begin range. Find the other range, go to the right/left until prefix is smaller than ith neighbour to the left or right (opposite side of where are we going).
+                // Find the split point in this range using binary search
+                // That's your node. 
+                // Write for both of the nodes who the parent is.
+            }
+
+            return bvhNodes;
+        }
     } // namespace
 
     Loaders::CPUBVHBuildMortonLoader::result_type
     CPUBVHBuildMortonLoader::operator()(Resources::MeshResource& mesh, glm::vec4 meshAABBLower, glm::vec4 meshAABBUpper) const
     {
-        using BVHNode = Resources::CPUBVHResource::BVHNode;
-        using BVHLeaf = Resources::CPUBVHResource::BVHLeaf;
+        // TODO: Do it by setting.
 
-        std::vector<BVHNode> bvhNodes{};
+        // auto bvhNodes = buildBVHUsingSimpleMorton(mesh, meshAABBLower, meshAABBUpper);
 
-        std::vector<std::pair<uint32_t, BVHNode>> bvhLeaves{};
-
-        auto& meshIndices  = mesh.GetIndices();
-        auto& meshVertices = mesh.GetVertices();
-        for (size_t i = 0; i < meshIndices.size(); i += 3) {
-            auto idx0 = meshIndices[i].idx;
-            auto idx1 = meshIndices[i + 1].idx;
-            auto idx2 = meshIndices[i + 2].idx;
-
-            glm::vec3 v0 = meshVertices[idx0].position;
-            glm::vec3 v1 = meshVertices[idx1].position;
-            glm::vec3 v2 = meshVertices[idx2].position;
-
-            uint32_t mortonCode = convertTriangleToMortonCode(v0, v1, v2, meshAABBLower, meshAABBUpper);
-
-            auto triangleId = i / 3;
-
-            BVHLeaf leaf{};
-            leaf.triangleId = triangleId;
-            leaf.v0         = v0;
-            leaf.v1         = v1;
-            leaf.v2         = v2;
-
-            glm::vec4 lower = glm::vec4(glm::min(v0, glm::min(v1, v2)), 1.0);
-            glm::vec4 upper = glm::vec4(glm::max(v0, glm::max(v1, v2)), 1.0);
-
-            BVHNode node{};
-            node.leaves.push_back(std::move(leaf));
-            node.aabb.lower = std::move(lower);
-            node.aabb.upper = std::move(upper);
-            node.children   = {};
-
-            bvhLeaves.push_back(std::make_pair(mortonCode, std::move(node)));
-        }
-
-        std::sort(bvhLeaves.begin(), bvhLeaves.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-
-        // Now we can create our BVH - leaves are sorted by Morton codes.
-        bvhNodes.reserve(bvhLeaves.size()); // This could be improved.
-
-        std::vector<size_t> currentLevel;
-        currentLevel.reserve(bvhNodes.size());
-        for (const auto& [mortonCode, node] : bvhLeaves) {
-            currentLevel.push_back(bvhNodes.size());
-            bvhNodes.push_back(node);
-        }
-
-        while (currentLevel.size() > 1) {
-            std::vector<size_t> nextLevel;
-
-            while (!currentLevel.empty()) {
-                auto numChildren = std::min(currentLevel.size(), static_cast<size_t>(MAX_BVH_CHILDREN));
-
-                auto parentIndex = bvhNodes.size();
-
-                BVHNode parentNode{};
-                parentNode.aabb.lower = glm::vec4(std::numeric_limits<float>::max());
-                parentNode.aabb.upper = glm::vec4(std::numeric_limits<float>::lowest());
-
-                parentNode.numChildren = numChildren;
-                parentNode.children.resize(numChildren);
-
-                for (size_t i = 0; i < numChildren; i++) {
-                    auto childIndex = currentLevel.back();
-                    currentLevel.pop_back();
-
-                    auto& child           = bvhNodes[childIndex];
-                    parentNode.aabb.lower = glm::min(parentNode.aabb.lower, child.aabb.lower);
-                    parentNode.aabb.upper = glm::max(parentNode.aabb.upper, child.aabb.upper);
-
-                    parentNode.children[i] = parentIndex - childIndex;
-                }
-                bvhNodes.push_back(std::move(parentNode));
-                nextLevel.push_back(parentIndex);
-            }
-
-            currentLevel = std::move(nextLevel);
-        }
-
-        std::reverse(bvhNodes.begin(), bvhNodes.end());
+        auto bvhNodes = buildBVHUsingKarrasMorton(mesh, meshAABBLower, meshAABBUpper);
 
         Resources::CPUBVHResource bvhResource(std::move(bvhNodes));
         return bvhResource;
