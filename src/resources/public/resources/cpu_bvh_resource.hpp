@@ -36,9 +36,9 @@ namespace Prism::Resources
 
         struct BVHNode
         {
-            AABB                  aabb;
-            std::vector<uint32_t> children; // always positive offsets, from this node to children.
-            uint32_t              numChildren;
+            AABB             aabb;
+            std::vector<int> children; // can be both negative and positive.
+            int              numChildren;
 
             std::vector<BVHLeaf> leaves;
         };

@@ -1,6 +1,11 @@
-#pragma once
-
 #include "loaders/cpu_bvh_build_morton_loader.hpp"
+
+#include <bitset>
+#include <utility>
+#include <bit>
+#include <unordered_map>
+#include <cstdlib>
+#include <set>
 
 namespace Prism::Loaders
 {
@@ -39,46 +44,12 @@ namespace Prism::Loaders
             return code;
         }
 
-        std::vector<BVHLeaf> convertPrimitivesToMortonCodes(Resources::MeshResource& mesh, glm::vec4 meshAABBLower, glm::vec4 meshAABBUpper)
+        uint64_t calculateDelta(std::vector<std::pair<uint32_t, BVHLeaf>>& bvhMortonCodeLeaves, uint32_t i, uint32_t j)
         {
-            std::vector<BVHLeaf> bvhLeaves{};
-
-            std::vector<std::pair<uint32_t, BVHLeaf>> bvhMortonCodeLeaves{};
-
-            auto& meshIndices  = mesh.GetIndices();
-            auto& meshVertices = mesh.GetVertices();
-
-            for (size_t i = 0; i < meshIndices.size(); i += 3) {
-                auto idx0 = meshIndices[i].idx;
-                auto idx1 = meshIndices[i + 1].idx;
-                auto idx2 = meshIndices[i + 2].idx;
-
-                glm::vec3 v0 = meshVertices[idx0].position;
-                glm::vec3 v1 = meshVertices[idx1].position;
-                glm::vec3 v2 = meshVertices[idx2].position;
-
-                uint32_t mortonCode = convertTriangleToMortonCode(v0, v1, v2, meshAABBLower, meshAABBUpper);
-
-                auto triangleId = i / 3;
-
-                BVHLeaf leaf{};
-                leaf.triangleId = triangleId;
-                leaf.v0         = v0;
-                leaf.v1         = v1;
-                leaf.v2         = v2;
-
-                bvhMortonCodeLeaves.push_back(std::make_pair(mortonCode, std::move(leaf)));
+            if (bvhMortonCodeLeaves[i].first == bvhMortonCodeLeaves[j].first) {
+                return 32 + std::countl_zero(i ^ j);
             }
-
-            std::sort(bvhMortonCodeLeaves.begin(), bvhMortonCodeLeaves.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-
-            bvhLeaves.reserve(bvhMortonCodeLeaves.size());
-
-            for (const auto& [mortonCode, leaf] : bvhMortonCodeLeaves) {
-                bvhLeaves.push_back(leaf);
-            }
-
-            return bvhLeaves;
+            return std::countl_zero(bvhMortonCodeLeaves[i].first ^ bvhMortonCodeLeaves[j].first);
         }
 
         std::vector<BVHNode> buildBVHUsingSimpleMorton(Resources::MeshResource& mesh, glm::vec4 meshAABBLower, glm::vec4 meshAABBUpper)
@@ -173,16 +144,156 @@ namespace Prism::Loaders
         {
             std::vector<BVHNode> bvhNodes;
 
+            // Create morton codes from leaves. Sort them.
+            std::vector<std::pair<uint32_t, BVHLeaf>> bvhMortonCodeLeaves{};
+
+            auto& meshIndices  = mesh.GetIndices();
+            auto& meshVertices = mesh.GetVertices();
+
+            for (size_t i = 0; i < meshIndices.size(); i += 3) {
+                auto idx0 = meshIndices[i].idx;
+                auto idx1 = meshIndices[i + 1].idx;
+                auto idx2 = meshIndices[i + 2].idx;
+
+                glm::vec3 v0 = meshVertices[idx0].position;
+                glm::vec3 v1 = meshVertices[idx1].position;
+                glm::vec3 v2 = meshVertices[idx2].position;
+
+                uint32_t mortonCode = convertTriangleToMortonCode(v0, v1, v2, meshAABBLower, meshAABBUpper);
+
+                auto triangleId = i / 3;
+
+                BVHLeaf leaf{};
+                leaf.triangleId = triangleId;
+                leaf.v0         = v0;
+                leaf.v1         = v1;
+                leaf.v2         = v2;
+
+                bvhMortonCodeLeaves.push_back(std::make_pair(mortonCode, std::move(leaf)));
+            }
+
+            std::sort(bvhMortonCodeLeaves.begin(), bvhMortonCodeLeaves.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
             uint32_t primitiveCount    = mesh.GetIndices().size() / 3;
             uint32_t internalNodeCount = primitiveCount - 1;
 
-            // Could be parallelized
+            bvhNodes.resize(internalNodeCount);
+
+            std::vector<int>             nodesContainingLeaves{};
+            std::unordered_map<int, int> childToParentMap{};
+
+            // Could be parallelized.
+            // Root could be specially handled.
+            // TODO: Handle the case with same morton codes.
             for (int i = 0; i < internalNodeCount; i++) {
-                // Check direction - clamp it obviously. XOR with i - 1 and i + 1, and pick the one that we have more trailing zeros with.
-                // This is will be the end or begin range. Find the other range, go to the right/left until prefix is smaller than ith neighbour to the left or right (opposite side of where are we going).
-                // Find the split point in this range using binary search
-                // That's your node. 
-                // Write for both of the nodes who the parent is.
+                uint64_t deltaLeft  = 0;
+                uint64_t deltaRight = 0;
+
+                if (i > 0) {
+                    deltaLeft = calculateDelta(bvhMortonCodeLeaves, i, i - 1);
+                }
+                // We don't need to check delta right - we are iterating until n - 1.
+                deltaRight = calculateDelta(bvhMortonCodeLeaves, i, i + 1);
+
+                int direction = deltaLeft > deltaRight ? -1 : 1;
+
+                uint64_t deltaMin = deltaLeft > deltaRight ? deltaRight : deltaLeft;
+
+                int  move       = 1;
+                int  iterator   = i + (direction * move);
+                bool foundSplit = false;
+                while (iterator >= 0 && iterator <= internalNodeCount) {
+                    uint64_t delta = calculateDelta(bvhMortonCodeLeaves, i, iterator);
+
+                    if (delta <= deltaMin) {
+                        move--; // go back by one
+                        foundSplit = true;
+                    } else {
+                        move++;
+                    }
+
+                    iterator = i + (direction * move);
+
+                    if (delta <= deltaMin) {
+                        break;
+                    }
+                }
+
+                // It needs to cover the whole range - special case for root.
+                if (!foundSplit) {
+                    iterator = i + (direction * (move - 1));
+                }
+
+                // It is possible that a node will contain leaf and internal node as children.
+                // If any of the side count is equal to 1, then it will be selected as a leaf. In any other case it's an internal node.
+                int rangeBegin = std::min(i, iterator);
+                int rangeEnd   = std::max(iterator, i);
+
+                uint64_t deltaNode = calculateDelta(bvhMortonCodeLeaves, rangeBegin, rangeEnd);
+
+                // Should be binary search.
+                foundSplit = false;
+                move       = 1;
+                iterator   = rangeBegin;
+                while (iterator >= rangeBegin && iterator <= rangeEnd) {
+                    uint64_t delta = calculateDelta(bvhMortonCodeLeaves, rangeBegin, iterator);
+
+                    if (delta <= deltaNode) {
+                        // This is the split point.
+                        iterator--;
+                        break;
+                    } else {
+                        iterator++;
+                    }
+                }
+
+                BVHNode& node = bvhNodes[i];
+
+                int splitPoint = iterator; // because we went from the left side.
+
+                int leftCount  = splitPoint - rangeBegin + 1;
+                int rightCount = rangeEnd - splitPoint;
+                std::vector<int> counts{leftCount, rightCount};
+
+                for (int offset = 0; offset <= 1; offset++) {
+                    if (counts[offset] == 1) {
+                        nodesContainingLeaves.push_back(i);
+
+                        node.leaves.emplace_back(bvhMortonCodeLeaves[splitPoint + offset].second);
+
+                        glm::vec4 v0 = glm::vec4(bvhMortonCodeLeaves[splitPoint + offset].second.v0, 1.0f);
+                        glm::vec4 v1 = glm::vec4(bvhMortonCodeLeaves[splitPoint + offset].second.v1, 1.0f);
+                        glm::vec4 v2 = glm::vec4(bvhMortonCodeLeaves[splitPoint + offset].second.v2, 1.0f);
+
+                        AABB triAABB{};
+                        triAABB.lower = glm::min(glm::min(v0, v1), v2);
+                        triAABB.upper = glm::max(glm::max(v0, v1), v2);
+
+                        node.aabb.lower = glm::min(node.aabb.lower, triAABB.lower);
+                        node.aabb.upper = glm::max(node.aabb.upper, triAABB.upper);
+                    } else {
+                        node.children.push_back(splitPoint + offset - i);
+                        node.numChildren++;
+                        childToParentMap[splitPoint + offset] = i;
+                    }
+                }
+            }
+
+            // Propagate AABBs. So we need backpointers.
+            for (const auto& leafId : nodesContainingLeaves) {
+                AABB& aabbToPropagate = bvhNodes[leafId].aabb;
+
+                auto parent = leafId;
+
+                while (childToParentMap.find(parent) != childToParentMap.end()) {
+                    bvhNodes[parent].aabb.lower = glm::min(bvhNodes[parent].aabb.lower, aabbToPropagate.lower);
+                    bvhNodes[parent].aabb.upper = glm::max(bvhNodes[parent].aabb.upper, aabbToPropagate.upper);
+
+                    parent = childToParentMap[parent];
+                }
+
+                bvhNodes[parent].aabb.lower = glm::min(bvhNodes[parent].aabb.lower, aabbToPropagate.lower);
+                bvhNodes[parent].aabb.upper = glm::max(bvhNodes[parent].aabb.upper, aabbToPropagate.upper);
             }
 
             return bvhNodes;

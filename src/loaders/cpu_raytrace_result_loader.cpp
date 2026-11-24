@@ -156,7 +156,7 @@ namespace Prism::Loaders
             // }
             // return currentHits;
 
-            std::stack<uint32_t> indicesStack;
+            std::stack<int> indicesStack;
             indicesStack.push(0);
 
             while (!indicesStack.empty()) {
@@ -180,13 +180,13 @@ namespace Prism::Loaders
                             }
                         }
                         // std::cout << std::format("[DFS] Found leaf! Total hits: {}\n", currentHits);
-                    } else {
-                        // std::cout << "[DFS] Internal node, pushing children to stack:\n";
-                        for (size_t i = 0; i < currentNode.numChildren; i++) {
-                            auto offset = currentNode.children[i];
+                    }
 
-                            indicesStack.push(currentNodeIndex + offset);
-                        }
+                    // std::cout << "[DFS] Internal node, pushing children to stack:\n";
+                    for (size_t i = 0; i < currentNode.numChildren; i++) {
+                        auto offset = currentNode.children[i];
+
+                        indicesStack.push(currentNodeIndex + offset);
                     }
                 }
             }
