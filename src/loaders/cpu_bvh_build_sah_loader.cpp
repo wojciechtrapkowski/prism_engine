@@ -28,7 +28,8 @@ namespace Prism::Loaders
             AABB                     currentAABB,
             uint32_t                 currentNodeIndex = 0)
         {
-            std::array<std::array<float, NUMBER_OF_BINS - 1>, NUMBER_OF_AXES> sahCosts{};
+            std::array<std::array<float, NUMBER_OF_BINS - 1>, NUMBER_OF_AXES> sahCosts;
+            for (auto& axis : sahCosts) axis.fill(std::numeric_limits<float>::infinity());
 
             auto& meshIndices  = mesh.GetIndices();
             auto& meshVertices = mesh.GetVertices();
@@ -56,40 +57,6 @@ namespace Prism::Loaders
                     }
                 }
 
-                std::pair<bool, bool> leftRightHasAnyValue = {false, false};
-                for (size_t i = 0; i < NUMBER_OF_AXES; i++) {
-                    leftRightHasAnyValue.first |= leftRightSideCountPerAxis[i].first > 0;
-                    leftRightHasAnyValue.second |= leftRightSideCountPerAxis[i].second > 0;
-                }
-
-                // They both need to have values.
-                if (!(leftRightHasAnyValue.first && leftRightHasAnyValue.second)) {
-                    // We need to create new node with these primitives.
-
-                    for (const auto& triId : triIndices) {
-                        BVHLeaf leaf;
-
-                        leaf.triangleId = triId;
-
-                        auto idx0 = meshIndices[triId * 3 + 0];
-                        auto idx1 = meshIndices[triId * 3 + 1];
-                        auto idx2 = meshIndices[triId * 3 + 2];
-
-                        auto v0 = meshVertices[idx0.idx].position;
-                        auto v1 = meshVertices[idx1.idx].position;
-                        auto v2 = meshVertices[idx2.idx].position;
-
-                        leaf.v0 = v0;
-                        leaf.v1 = v1;
-                        leaf.v2 = v2;
-
-                        auto& currentNode = bvhNodes[currentNodeIndex];
-                        currentNode.leaves.push_back(std::move(leaf));
-                    }
-
-                    return;
-                }
-
                 // For this split on plane i, at j, calculate SAH cost
                 // For now omit constants
 
@@ -98,14 +65,19 @@ namespace Prism::Loaders
                     2 * (mainBoundingBoxD.x * mainBoundingBoxD.y + mainBoundingBoxD.z * mainBoundingBoxD.y + mainBoundingBoxD.z * mainBoundingBoxD.x);
 
                 for (int i = 0; i < NUMBER_OF_AXES; i++) {
+                    auto [leftCount, rightCount] = leftRightSideCountPerAxis[i];
+                    if (leftCount == 0 || rightCount == 0) {
+                        continue;
+                    }
+
                     auto dLeft  = leftRightSideAABBPerAxis[i].first.upper - leftRightSideAABBPerAxis[i].first.lower;
                     auto dRight = leftRightSideAABBPerAxis[i].second.upper - leftRightSideAABBPerAxis[i].second.lower;
 
                     float leftArea  = 2 * (dLeft.x * dLeft.y + dLeft.z * dLeft.y + dLeft.z * dLeft.x);
                     float rightArea = 2 * (dRight.x * dRight.y + dRight.z * dRight.y + dRight.z * dRight.x);
 
-                    sahCosts[i][j - 1] = (leftArea / mainBoundingBoxArea) * leftRightSideCountPerAxis[i].first +
-                                         (rightArea / mainBoundingBoxArea) * leftRightSideCountPerAxis[i].second;
+                    sahCosts[i][j - 1] = (leftArea / mainBoundingBoxArea) * leftCount +
+                                         (rightArea / mainBoundingBoxArea) * rightCount;
                 }
             }
 
@@ -121,6 +93,33 @@ namespace Prism::Loaders
                         selectedPlane = j;
                     }
                 }
+            }
+            
+            if (selectedAxis == -1 || minSahCost >= triIndices.size()) {
+                // We need to create new node with these primitives.
+
+                for (const auto& triId : triIndices) {
+                    BVHLeaf leaf;
+
+                    leaf.triangleId = triId;
+
+                    auto idx0 = meshIndices[triId * 3 + 0];
+                    auto idx1 = meshIndices[triId * 3 + 1];
+                    auto idx2 = meshIndices[triId * 3 + 2];
+
+                    auto v0 = meshVertices[idx0.idx].position;
+                    auto v1 = meshVertices[idx1.idx].position;
+                    auto v2 = meshVertices[idx2.idx].position;
+
+                    leaf.v0 = v0;
+                    leaf.v1 = v1;
+                    leaf.v2 = v2;
+
+                    auto& currentNode = bvhNodes[currentNodeIndex];
+                    currentNode.leaves.push_back(std::move(leaf));
+                }
+
+                return;
             }
 
             // Now we need to divide the primitives for the left and right side and run recursively. We could probably merge this pass with the one up.

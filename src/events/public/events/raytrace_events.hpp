@@ -13,8 +13,9 @@ namespace Prism::Events
 
     struct CPURaytraceFinishedEvent
     {
-        VkDescriptorSet textureId;
-        int             width;
-        int             height;
+        VkDescriptorSet         textureId;
+        Resources::Resource::ID outputId;
+        int                     width;
+        int                     height;
     };
 } // namespace Prism::Events

@@ -137,15 +137,15 @@ namespace Prism::Loaders
             return tMin <= tMax;
         }
 
-        size_t traverseBVH(Resources::CPUBVHResource& bvh, Ray& ray)
+        Resources::CPURaytraceResultResource::PerPixelData traverseBVH(Resources::CPUBVHResource& bvh, Ray& ray)
         {
+            Resources::CPURaytraceResultResource::PerPixelData result{};
+
             auto& nodes = bvh.GetNodes();
 
             if (nodes.empty()) {
-                return 0;
+                return result;
             }
-
-            size_t currentHits = 0;
 
             // for (auto& node : bvh.nodes) {
             //     auto& aabb = node.aabb;
@@ -173,10 +173,12 @@ namespace Prism::Loaders
                 }
 
                 if (hit) {
+                    result.aabbIntersections++;
+
                     if (!currentNode.leaves.empty()) {
                         for (auto& leaf : currentNode.leaves) {
                             if (checkRayWithTriangleIntersection(ray, leaf.v0, leaf.v1, leaf.v2)) {
-                                currentHits++;
+                                result.triangleHits++;
                             }
                         }
                         // std::cout << std::format("[DFS] Found leaf! Total hits: {}\n", currentHits);
@@ -191,11 +193,11 @@ namespace Prism::Loaders
                 }
             }
 
-            if (currentHits > 0) {
+            if (result.triangleHits > 0) {
                 // std::cout << std::format("[DFS] Finished. Total hits: {}\n", currentHits);
             }
 
-            return currentHits;
+            return result;
         }
     } // namespace
 
@@ -230,9 +232,9 @@ namespace Prism::Loaders
                 glm::vec3 worldPoint = glm::vec3(position) / position.w;
                 glm::vec3 cameraPos  = settings.cameraRelated.position;
 
-                Ray ray{};
-                ray.origin    = glm::vec4(cameraPos, 1.0f);                              // point, which can be translated so w=1.0f
-                ray.direction = glm::vec4(glm::normalize(worldPoint - cameraPos), 0.0f); // direction, w=0.0f;
+                Ray originalRay{};
+                originalRay.origin    = glm::vec4(cameraPos, 1.0f);                              // point, which can be translated so w=1.0f
+                originalRay.direction = glm::vec4(glm::normalize(worldPoint - cameraPos), 0.0f); // direction, w=0.0f;
 
                 // DEBUG
                 // uint32_t color = row * RT_HEIGHT + col;
@@ -242,14 +244,17 @@ namespace Prism::Loaders
                     // We need to transform ray. By inverse of the transform of the mesh, so that ray is in its local space.
                     auto& transform = transforms[i];
 
-                    ray.origin    = glm::inverse(transform) * ray.origin;
-                    ray.direction = glm::normalize(glm::inverse(transform) * ray.direction);
+                    Ray ray{};
+                    ray.origin    = glm::inverse(transform) * originalRay.origin;
+                    ray.direction = glm::normalize(glm::inverse(transform) * originalRay.direction);
 
-                    auto hitsCount = traverseBVH(bvhsToTraverse[i], ray);
+                    auto rayBVHTraversalResult = traverseBVH(bvhsToTraverse[i], ray);
+                    pixelData.aabbIntersections += rayBVHTraversalResult.aabbIntersections;
+                    pixelData.triangleHits += rayBVHTraversalResult.triangleHits;
 
-                    pixelData.r = hitsCount > 0 ? 255 : 0;
-                    pixelData.g = ((hitsCount > 0 ? (255 / bvhsToTraverse.size() * (i + 1)) : 0));
-                    pixelData.b = 0;
+                    if (rayBVHTraversalResult.triangleHits > 0) {
+                        pixelData.b = std::min(255, static_cast<int>((255 / bvhsToTraverse.size() * (i + 1))));
+                    }
                     pixelData.a = 255;
                 }
 

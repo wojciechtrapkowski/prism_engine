@@ -26,11 +26,14 @@ namespace Prism::UI
     private:
         Resources::ContextResources& _contextResources;
 
-        entt::scoped_connection    _onCpuRaytraceFinishedScopedConnection;
+        // Custom Raytracing Drawing System fields:
+        entt::scoped_connection                         _onCpuRaytraceFinishedScopedConnection;
         std::optional<Events::CPURaytraceFinishedEvent> _cpuRaytraceFinishedOpt;
         std::vector<Events::CPURaytraceFinishedEvent>   _cpuRaytraceResults;
 
-        bool _isTraceOpen = false;
+        bool _isTraceOpen         = false;
+        int  _traceSelectedPixelX = -1;
+        int  _traceSelectedPixelY = -1;
 
         void onCPURaytraceFinishEvent(Events::CPURaytraceFinishedEvent& event);
     };

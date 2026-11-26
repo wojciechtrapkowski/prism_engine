@@ -31,6 +31,7 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         CustomRaytracedGeometryDrawingSubsystem& operator=(CustomRaytracedGeometryDrawingSubsystem&& other) = delete;
 
         inline static const std::string_view CPU_RAYTRACE_RESULTS_BUFFER_ID_PREFIX = "CustomRaytracedGeometryDrawingSubsystem/CPURaytraceResultsBuffer";
+        inline static const std::string_view CPU_RAYTRACE_RESULTS_OUTPUT_ID_PREFIX = "CustomRaytracedGeometryDrawingSubsystem/CPURaytraceResultsOutput";
 
         inline static const std::string_view MESH_BVH_BUFFER_ID_PREFIX = "CustomRaytracedGeometryDrawingSubsystem/BVHBuffer";
 

@@ -56,7 +56,8 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         auto currentlySelectedBuilder = meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder;
 
         auto getMeshBVHBufferId = [currentlySelectedBuilder](auto& resourceId) {
-            return std::hash<std::string_view>{}(std::format("{}/{}/{}", MESH_BVH_BUFFER_ID_PREFIX, static_cast<int>(currentlySelectedBuilder), std::to_string(resourceId)));
+            return std::hash<std::string_view>{}(
+                std::format("{}/{}/{}", MESH_BVH_BUFFER_ID_PREFIX, static_cast<int>(currentlySelectedBuilder), std::to_string(resourceId)));
         };
 
         Loaders::CPUBVHBuildMortonLoader buildBVHMortonLoader{};
@@ -97,9 +98,9 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
                 std::optional<Resources::CPUBVHResource> bvhResourceOpt;
                 if (currentlySelectedBuilder == Components::MeshDrawingSystemSettings::CustomRaytracedGeometryDrawingSystemSettings::Builder::MORTON) {
-                    bvhResourceOpt = buildBVHMortonLoader(mesh, sceneAABB.lower, sceneAABB.upper);
+                    bvhResourceOpt = buildBVHMortonLoader(mesh, sceneAABB.originalLower, sceneAABB.originalUpper);
                 } else if (currentlySelectedBuilder == Components::MeshDrawingSystemSettings::CustomRaytracedGeometryDrawingSystemSettings::Builder::SAH) {
-                    bvhResourceOpt = buildBVHSAHLoader(mesh, sceneAABB.lower, sceneAABB.upper);
+                    bvhResourceOpt = buildBVHSAHLoader(mesh, sceneAABB.originalLower, sceneAABB.originalUpper);
                 }
 
                 if (!bvhResourceOpt) {
@@ -241,9 +242,15 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             auto textureResource = Resources::VkTextureResource(vulkanResource.GetDevice(), std::move(imageResource), imageView, sampler);
 
             Resources::Resource::ID textureId =
-                std::hash<std::string_view>{}(std::format("{}_{}", CPU_RAYTRACE_RESULTS_BUFFER_ID_PREFIX, _cpuRaytraceCounter++));
+                std::hash<std::string_view>{}(std::format("{}_{}", CPU_RAYTRACE_RESULTS_BUFFER_ID_PREFIX, _cpuRaytraceCounter));
+
+            Resources::Resource::ID outputId = std::hash<std::string_view>{}(
+                std::format("{}_{}_{}", CPU_RAYTRACE_RESULTS_BUFFER_ID_PREFIX, CPU_RAYTRACE_RESULTS_OUTPUT_ID_PREFIX, _cpuRaytraceCounter));
 
             systemsStorage.Insert(textureId, std::make_unique<Resources::VkTextureResource>(std::move(textureResource)));
+            systemsStorage.Insert(outputId, std::make_unique<Resources::CPURaytraceResultResource>(std::move(raytraceResult)));
+
+            _cpuRaytraceCounter++;
         }
     }
 
@@ -259,8 +266,12 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
 
             auto imguiTextureId =
                 ImGui_ImplVulkan_AddTexture(textureResource.GetSampler(), textureResource.GetImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+            Resources::Resource::ID outputId = std::hash<std::string_view>{}(
+                std::format("{}_{}_{}", CPU_RAYTRACE_RESULTS_BUFFER_ID_PREFIX, CPU_RAYTRACE_RESULTS_OUTPUT_ID_PREFIX, _cpuRaytraceCounter - 1));
+
             _contextResources.GetDispatcher().enqueue<Events::CPURaytraceFinishedEvent>(
-                imguiTextureId, textureResource.GetWidth(), textureResource.GetHeight());
+                imguiTextureId, outputId, textureResource.GetWidth(), textureResource.GetHeight());
         }
         _cpuRaytraceStartEventToProcessOpt = std::nullopt;
     }

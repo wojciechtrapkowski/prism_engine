@@ -150,6 +150,10 @@ namespace Prism::Loaders
             auto& meshIndices  = mesh.GetIndices();
             auto& meshVertices = mesh.GetVertices();
 
+            /*
+                Create Morton codes from triangle centroids. Sort them.
+            */
+
             for (size_t i = 0; i < meshIndices.size(); i += 3) {
                 auto idx0 = meshIndices[i].idx;
                 auto idx1 = meshIndices[i + 1].idx;
@@ -174,6 +178,10 @@ namespace Prism::Loaders
 
             std::sort(bvhMortonCodeLeaves.begin(), bvhMortonCodeLeaves.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
+            /*
+                Kerras loop.
+            */
+
             uint32_t primitiveCount    = mesh.GetIndices().size() / 3;
             uint32_t internalNodeCount = primitiveCount - 1;
 
@@ -184,7 +192,6 @@ namespace Prism::Loaders
 
             // Could be parallelized.
             // Root could be specially handled.
-            // TODO: Handle the case with same morton codes.
             for (int i = 0; i < internalNodeCount; i++) {
                 uint64_t deltaLeft  = 0;
                 uint64_t deltaRight = 0;
@@ -251,8 +258,8 @@ namespace Prism::Loaders
 
                 int splitPoint = iterator; // because we went from the left side.
 
-                int leftCount  = splitPoint - rangeBegin + 1;
-                int rightCount = rangeEnd - splitPoint;
+                int              leftCount  = splitPoint - rangeBegin + 1;
+                int              rightCount = rangeEnd - splitPoint;
                 std::vector<int> counts{leftCount, rightCount};
 
                 for (int offset = 0; offset <= 1; offset++) {
@@ -279,7 +286,9 @@ namespace Prism::Loaders
                 }
             }
 
-            // Propagate AABBs. So we need backpointers.
+            /*
+                AABB Propagation - from nodes containing leaves up to the root.
+            */
             for (const auto& leafId : nodesContainingLeaves) {
                 AABB& aabbToPropagate = bvhNodes[leafId].aabb;
 

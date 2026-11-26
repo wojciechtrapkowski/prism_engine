@@ -7,6 +7,8 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include "resources/cpu_raytrace_result_resource.hpp"
+
 #include "components/mesh.hpp"
 #include "components/tags.hpp"
 #include "components/transform.hpp"
@@ -63,12 +65,13 @@ namespace Prism::UI
                 ImGui::SliderInt("Raytracing Width", &meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingWidth, 1, 3840);
                 ImGui::SliderInt("Raytracing Height", &meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.raytracingHeight, 1, 2160);
 
-            std::vector<const char*> builderItems = {"Morton", "SAH"};
-                int currentItem = static_cast<int>(meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder);
+                std::vector<const char*> builderItems = {"Morton", "SAH"};
+                int                      currentItem  = static_cast<int>(meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder);
                 if (ImGui::Combo("Builder", &currentItem, builderItems.data(), static_cast<int>(builderItems.size()))) {
-                    meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder = static_cast<Components::MeshDrawingSystemSettings::CustomRaytracedGeometryDrawingSystemSettings::Builder>(currentItem);
+                    meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.builder =
+                        static_cast<Components::MeshDrawingSystemSettings::CustomRaytracedGeometryDrawingSystemSettings::Builder>(currentItem);
                 }
-        }
+            }
 
             // Always visible, so we can compare.
             if (!_cpuRaytraceResults.empty()) {
@@ -93,18 +96,80 @@ namespace Prism::UI
 
                 if (_isTraceOpen) {
                     if (ImGui::Begin("Raytrace Result", &_isTraceOpen)) {
-                        auto&  traceResult = _cpuRaytraceResults[currentTrace];
-                        ImVec2 imageSize(traceResult.width, traceResult.height); 
+                        constexpr auto SCALE = 3;
 
+                        ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+                        auto& traceResult = _cpuRaytraceResults[currentTrace];
+
+                        // Scale the image, so we can show per pixel statistics.
+                        ImVec2 imageSize(traceResult.width * SCALE, traceResult.height * SCALE);
+
+                        ImVec2 imagePosition = ImGui::GetCursorScreenPos();
                         ImGui::Image((ImTextureID)traceResult.textureId, imageSize);
+
+                        if (ImGui::IsItemHovered()) {
+                            auto mousePosX = ImGui::GetMousePos().x;
+                            auto mousePosY = ImGui::GetMousePos().y;
+
+                            // 0 0 is in the top left corner
+                            // width, height is in the bottom right corner
+
+                            auto selectedPixelX = std::abs(imagePosition.x - mousePosX);
+                            auto selectedPixelY = std::abs(imagePosition.y - mousePosY);
+
+                            ImVec2 startPosition = {imagePosition.x + selectedPixelX, imagePosition.y + selectedPixelY};
+                            ImVec2 endPosition   = {startPosition.x + SCALE, startPosition.y + SCALE};
+
+                            // Draw outline.
+                            drawList->AddRect(startPosition, endPosition, IM_COL32(255, 255, 0, 255), 0.0f, 0, 1.0f);
+
+                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                                _traceSelectedPixelX = selectedPixelX / SCALE;
+                                _traceSelectedPixelY = selectedPixelY / SCALE;
+                            }
+
+                            if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                                _traceSelectedPixelX = -1;
+                                _traceSelectedPixelY = -1;
+                            }
+
+                            // std::cout << std::abs(imagePosition.x - mousePosX) << " " << std::abs(imagePosition.y - mousePosY) << std::endl;
+                        }
+
+                        bool pixelStatisticsOpen = true;
+                        ImGui::Begin("Pixel statistics", &pixelStatisticsOpen);
+
+                        if (_traceSelectedPixelX != -1 && _traceSelectedPixelY != -1) {
+                            ImVec2 startPosition = {imagePosition.x + _traceSelectedPixelX * SCALE, imagePosition.y + _traceSelectedPixelY * SCALE};
+                            ImVec2 endPosition   = {startPosition.x + SCALE, startPosition.y + SCALE};
+
+                            drawList->AddRect(startPosition, endPosition, IM_COL32(255, 0, 0, 255));
+
+                            auto outputId = traceResult.outputId;
+
+                            auto& systemsStorage  = scene.GetSystemsStorage();
+                            auto  outputResultOpt = systemsStorage.Get<Resources::CPURaytraceResultResource>(outputId);
+
+                            if (outputResultOpt) {
+                                auto& outputResult = outputResultOpt->get();
+                                auto& pixelData    = outputResult.Data()[_traceSelectedPixelY * traceResult.width + _traceSelectedPixelX];
+
+                                auto label =
+                                    std::format("AABB intersections: {}\nTriangle hits count: {}\n", pixelData.aabbIntersections, pixelData.triangleHits);
+                                ImGui::TextUnformatted(label.c_str());
+                            }
+                        }
+
+                        ImGui::End(); // Pixel statistics
                     }
-                    ImGui::End();
+                    ImGui::End();     // Raytrace Result - must be called even if Begin returned false
                 }
             }
 
             ImGui::EndGroup();
         }
-        
+
         ImGui::NewLine();
         ImGui::Separator();
         ImGui::NewLine();
@@ -118,12 +183,11 @@ namespace Prism::UI
             auto& aabbDrawingSystemSettings = registry.get<Components::AABBDrawingSystemSettings>(aabbDrawingSystemSettingsView.front());
 
             ImGui::Checkbox("Disable system", &aabbDrawingSystemSettings.disable);
-            
 
             ImGui::EndGroup();
         }
 
-        ImGui::End();
+        ImGui::End(); // Systems Settings
     }
 
     void SystemsSettingsUI::onCPURaytraceFinishEvent(Events::CPURaytraceFinishedEvent& event)

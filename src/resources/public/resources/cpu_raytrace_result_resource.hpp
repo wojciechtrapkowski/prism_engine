@@ -14,10 +14,10 @@ namespace Prism::Resources
         {
             constexpr static auto PIXEL_FORMAT = VK_FORMAT_R8G8B8A8_SRGB;
 
-            uint8_t r;
-            uint8_t g;
-            uint8_t b;
-            uint8_t a;
+            uint8_t aabbIntersections = 0;
+            uint8_t triangleHits = 0;
+            uint8_t b = 0;
+            uint8_t a = 0;
         };
 
         CPURaytraceResultResource(std::vector<PerPixelData> data, int width, int height);
