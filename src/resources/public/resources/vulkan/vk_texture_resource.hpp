@@ -21,6 +21,8 @@ namespace Prism::Resources
         VkTextureResource& operator=(const VkTextureResource&) = delete;
 
         VkImage     GetImage() const { return _imageResource.GetImage(); }
+        int         GetWidth() const { return _imageResource.GetWidth(); }
+        int         GetHeight() const { return _imageResource.GetHeight(); }
         VkImageView GetImageView() const { return _imageView; }
         VkSampler   GetSampler() const { return _sampler; }
 

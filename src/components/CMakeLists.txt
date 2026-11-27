@@ -11,6 +11,8 @@ set(COMPONENTS_HEADERS
     public/components/camera_control.hpp
     public/components/systems_settings.hpp
     public/components/name.hpp
+    public/components/light.hpp
+    public/components/aabb.hpp
 )
 
 

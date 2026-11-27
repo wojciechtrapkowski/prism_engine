@@ -1,7 +1,8 @@
-#include "systems/subsystems/rasterized_geometry_drawing_subsystem.hpp"
+#include "systems/subsystems/mesh_drawing_system/rasterized_geometry_drawing_subsystem.hpp"
 
 #include "components/mesh.hpp"
 #include "components/transform.hpp"
+#include "components/light.hpp"
 
 #include "utils/vulkan/common.hpp"
 
@@ -34,12 +35,15 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         {
             VkDescriptorPool descriptorPool;
 
-            std::array<VkDescriptorPoolSize, 2> poolSizes{};
+            std::array<VkDescriptorPoolSize, 3> poolSizes{};
             poolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             poolSizes[0].descriptorCount = Resources::VulkanResource::FRAMES_IN_FLIGHT;
 
             poolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             poolSizes[1].descriptorCount = Resources::VulkanResource::FRAMES_IN_FLIGHT * MAX_NUMBER_OF_TEXTURES;
+
+            poolSizes[2].type            = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            poolSizes[2].descriptorCount = Resources::VulkanResource::FRAMES_IN_FLIGHT;
 
             VkDescriptorPoolCreateInfo poolInfo{};
             poolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -72,7 +76,14 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             samplerBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
             samplerBinding.pImmutableSamplers = nullptr;
 
-            std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboBinding, samplerBinding};
+            VkDescriptorSetLayoutBinding lightsBinding{};
+            lightsBinding.binding            = 2;
+            lightsBinding.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            lightsBinding.descriptorCount    = 1;
+            lightsBinding.stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT;
+            lightsBinding.pImmutableSamplers = nullptr;
+
+            std::array<VkDescriptorSetLayoutBinding, 3> bindings = {uboBinding, samplerBinding, lightsBinding};
 
             VkDescriptorSetLayoutCreateInfo layoutInfo{};
             layoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -82,10 +93,10 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsInfo{};
             bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
 
-            std::array<VkDescriptorBindingFlags, 2> bindingFlags = {
-                0,                                        // binding 0 (UBO) - no special flags
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT // binding 1 (samplers) - we won't use all of them.
-            };
+            std::array<VkDescriptorBindingFlags, 3> bindingFlags = {
+                0,                                         // binding 0 (UBO) - no special flags
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT, // binding 1 (samplers) - we won't use all of them.
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT};
             bindingFlagsInfo.bindingCount  = static_cast<uint32_t>(bindingFlags.size());
             bindingFlagsInfo.pBindingFlags = bindingFlags.data();
 
@@ -123,17 +134,25 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         {
             VkPipelineLayout pipelineLayout;
 
-            VkPushConstantRange pushRange{};
-            pushRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-            pushRange.offset     = 0;
-            pushRange.size       = sizeof(RasterizedGeometryDrawingSubsystem::PushConstants);
+            std::array<VkPushConstantRange, 2> pushConstantsRange = {};
+
+            VkPushConstantRange& vPushRange = pushConstantsRange[0];
+            vPushRange.stageFlags           = VK_SHADER_STAGE_VERTEX_BIT;
+            vPushRange.offset               = 0;
+            vPushRange.size                 = sizeof(RasterizedGeometryDrawingSubsystem::VertexShaderPushConstants);
+
+            VkPushConstantRange& fPushRange = pushConstantsRange[1];
+            fPushRange.stageFlags           = VK_SHADER_STAGE_FRAGMENT_BIT;
+            fPushRange.offset               = vPushRange.size;
+            fPushRange.size                 = sizeof(RasterizedGeometryDrawingSubsystem::FragmentShaderPushConstants);
 
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+
             pipelineLayoutInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             pipelineLayoutInfo.setLayoutCount         = 1;
             pipelineLayoutInfo.pSetLayouts            = &descriptorSetLayout;
-            pipelineLayoutInfo.pushConstantRangeCount = 1;
-            pipelineLayoutInfo.pPushConstantRanges    = &pushRange;
+            pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantsRange.size());
+            pipelineLayoutInfo.pPushConstantRanges    = pushConstantsRange.data();
 
             if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
                 throw std::runtime_error("Failed to create pipeline layout!");
@@ -283,8 +302,12 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             return pipeline;
         }
 
-        void
-        updateDescriptorSet(VkDevice device, VkDescriptorSet descriptorSet, VkBuffer commonUniformBuffer, std::vector<VkDescriptorImageInfo>& textureImageInfos)
+        void updateDescriptorSet(
+            VkDevice                            device,
+            VkDescriptorSet                     descriptorSet,
+            VkBuffer                            commonUniformBuffer,
+            std::vector<VkDescriptorImageInfo>& textureImageInfos,
+            std::optional<VkBuffer>             lightsBuffer)
         {
             VkDescriptorBufferInfo bufferInfo{};
             bufferInfo.buffer = commonUniformBuffer;
@@ -313,6 +336,24 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 samplerWrite.descriptorCount = static_cast<uint32_t>(textureImageInfos.size());
                 samplerWrite.pImageInfo      = textureImageInfos.data();
                 descriptorWrites.push_back(samplerWrite);
+            }
+
+            if (lightsBuffer) {
+                VkDescriptorBufferInfo lightsBufferInfo{};
+                lightsBufferInfo.buffer = lightsBuffer.value();
+                lightsBufferInfo.offset = 0;
+                lightsBufferInfo.range  = VK_WHOLE_SIZE;
+
+                VkWriteDescriptorSet lightsBufferDescriptorWrite{};
+                lightsBufferDescriptorWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                lightsBufferDescriptorWrite.dstSet          = descriptorSet;
+                lightsBufferDescriptorWrite.dstBinding      = 2;
+                lightsBufferDescriptorWrite.dstArrayElement = 0;
+                lightsBufferDescriptorWrite.descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                lightsBufferDescriptorWrite.descriptorCount = 1;
+                lightsBufferDescriptorWrite.pBufferInfo     = &lightsBufferInfo;
+
+                descriptorWrites.push_back(lightsBufferDescriptorWrite);
             }
 
             vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -354,15 +395,85 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         }
     }
 
-    void RasterizedGeometryDrawingSubsystem::Update(float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene) {
+    void RasterizedGeometryDrawingSubsystem::Update(
+        float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::VkStagingBufferResource& stagingBuffer)
+    {
+        _lightsBufferToDeleteOpt = std::nullopt;
 
+        auto& registry       = scene.GetRegistry();
+        auto& systemsStorage = scene.GetSystemsStorage();
+
+        auto lightsView = registry.view<Components::Light, Components::Transform>();
+
+        size_t lightsEntriesCount = 0;
+        for (const auto entity : lightsView) {
+            lightsEntriesCount++;
+        }
+
+        // what about the case, when we had a buffer and now we don't?
+        // if we don't have light entries, then lights count in push constants will be zero.
+        // buffer won't be recreated until lights count become larger than zero.
+        // thanks to that we don't have to fight with vulkan..
+
+        if (lightsEntriesCount > 0) {
+            bool doWeNeedToRecreateLightsBuffer = false;
+
+            auto lightsBufferOpt = systemsStorage.Get<Resources::VkBufferResource<LightEntry>>(LIGHTS_BUFFER_ID);
+
+            if (!lightsBufferOpt) {
+                doWeNeedToRecreateLightsBuffer |= true;
+            }
+
+            if (lightsBufferOpt) {
+                auto& lightsBuffer = lightsBufferOpt->get();
+
+                if (lightsBuffer.GetElementCount() != lightsEntriesCount) {
+                    doWeNeedToRecreateLightsBuffer |= true;
+                    _lightsBufferToDeleteOpt = std::move(lightsBuffer);
+                }
+            }
+
+            if (doWeNeedToRecreateLightsBuffer) {
+                systemsStorage.Delete(LIGHTS_BUFFER_ID);
+
+                Resources::VkBufferResource<LightEntry> lightEntryBuffer(
+                    _contextResources.GetVulkanResource().GetVmaAllocator(),
+                    sizeof(LightEntry) * lightsEntriesCount,
+                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+                systemsStorage.Insert(LIGHTS_BUFFER_ID, std::make_unique<Resources::VkBufferResource<LightEntry>>(std::move(lightEntryBuffer)));
+            }
+            lightsBufferOpt    = systemsStorage.Get<Resources::VkBufferResource<LightEntry>>(LIGHTS_BUFFER_ID);
+            auto& lightsBuffer = lightsBufferOpt->get();
+
+            std::vector<LightEntry> lightEntries;
+            lightEntries.reserve(lightsEntriesCount);
+
+            for (const auto&& [entity, light, transform] : lightsView.each()) {
+                LightEntry entry;
+                entry.position = glm::vec3(transform.transform[3]);
+                entry.strength = light.strength;
+                lightEntries.push_back(std::move(entry));
+            }
+
+            void*         data       = nullptr;
+            VmaAllocator  allocator  = _contextResources.GetVulkanResource().GetVmaAllocator();
+            VmaAllocation allocation = lightsBuffer.GetAllocation();
+
+            if (vmaMapMemory(allocator, allocation, &data) == VK_SUCCESS) {
+                std::memcpy(data, lightEntries.data(), lightsBuffer.GetBufferSize());
+                vmaUnmapMemory(allocator, allocation);
+            }
+        }
     };
 
     void RasterizedGeometryDrawingSubsystem::Render(
         float deltaTime, VkCommandBuffer commandBuffer, Resources::Scene& scene, Resources::RenderTargetResource& renderTarget)
     {
-        auto& registry    = scene.GetRegistry();
-        auto& meshStorage = scene.GetMeshStorage();
+        auto& registry       = scene.GetRegistry();
+        auto& meshStorage    = scene.GetMeshStorage();
+        auto& systemsStorage = scene.GetSystemsStorage();
 
         auto& resourceStorage = _contextResources.GetResourceStorage();
         auto& vulkanResource  = _contextResources.GetVulkanResource();
@@ -401,6 +512,8 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
         }
         auto& commonUniformBuffer = commonUniformBufferOpt->get();
 
+        auto lightsBufferOpt = systemsStorage.Get<Resources::VkBufferResource<LightEntry>>(LIGHTS_BUFFER_ID);
+
         auto meshTransformView = registry.view<Components::Mesh, Components::Transform>();
 
         std::vector<VkDescriptorImageInfo> textureImageInfos;
@@ -423,7 +536,11 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
                 textureImageInfos.push_back(imageInfo);
             }
         }
-        updateDescriptorSet(vulkanResource.GetDevice(), descriptorSets[currentFrame], commonUniformBuffer.GetBuffer(), textureImageInfos);
+        std::optional<VkBuffer> vkLightsBufferOpt = std::nullopt;
+        if (lightsBufferOpt) {
+            vkLightsBufferOpt = lightsBufferOpt->get().GetBuffer();
+        }
+        updateDescriptorSet(vulkanResource.GetDevice(), descriptorSets[currentFrame], commonUniformBuffer.GetBuffer(), textureImageInfos, vkLightsBufferOpt);
 
         vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
@@ -461,19 +578,36 @@ namespace Prism::Systems::Subsystems::MeshDrawingSystem
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdBindIndexBuffer(commandBuffer, mesh.GetIndexBuffer().GetBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-            PushConstants pushConstants{};
-            pushConstants.model = transform;
+            VertexShaderPushConstants vPushConstants{};
+            vPushConstants.model = transform;
+
+            FragmentShaderPushConstants fPushConstants{};
+
+            auto lightsView  = registry.view<Components::Light, Components::Transform>();
+            auto lightsCount = 0;
+            for (const auto entity : lightsView) {
+                lightsCount++;
+            }
+            fPushConstants.lightsCount = lightsCount;
+
+            vkCmdPushConstants(
+                commandBuffer,
+                pipelineLayout,
+                VK_SHADER_STAGE_FRAGMENT_BIT,
+                sizeof(VertexShaderPushConstants),
+                sizeof(FragmentShaderPushConstants),
+                &fPushConstants);
 
             if (mesh.GetTexture().has_value()) {
                 if (textureIndex >= MAX_NUMBER_OF_TEXTURES) {
                     throw std::runtime_error("Exceeded maximum number of textures supported by the shader!");
                 }
-                pushConstants.textureIndex = textureIndex;
+                vPushConstants.textureIndex = textureIndex;
                 textureIndex++;
             } else {
-                pushConstants.textureIndex = -1;
+                vPushConstants.textureIndex = -1;
             }
-            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pushConstants);
+            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VertexShaderPushConstants), &vPushConstants);
 
             vkCmdDrawIndexed(commandBuffer, mesh.GetIndexBuffer().GetElementCount(), 1, 0, 0, 0);
         }

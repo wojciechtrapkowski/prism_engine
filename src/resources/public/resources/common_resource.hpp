@@ -11,9 +11,11 @@ namespace Prism::Resources
 
     struct CommonResource
     {
-        glm::mat4 view{};
-        glm::mat4 projection{};
-        glm::vec4 cameraPosition{};
+        glm::mat4  view{};
+        glm::mat4  projection{};
+        glm::vec4  cameraPosition{};
+        glm::ivec2 screenResolution{};
+        glm::vec2  _padding{};
 
         inline static const Resources::Resource::ID UNIFORM_BUFFER_ID = std::hash<std::string_view>{}("CommonUniformUpdateSystem/UniformBufferResource");
     };

@@ -3,6 +3,10 @@
 #include "resources/context_resources.hpp"
 #include "resources/scene.hpp"
 
+#include "events/raytrace_events.hpp"
+
+#include "imgui.h"
+
 namespace Prism::UI
 {
     class SystemsSettingsUI
@@ -21,5 +25,18 @@ namespace Prism::UI
 
     private:
         Resources::ContextResources& _contextResources;
+
+        // Custom Raytracing Drawing System fields:
+        entt::scoped_connection                         _onCpuRaytraceFinishedScopedConnection;
+        std::optional<Events::CPURaytraceFinishedEvent> _cpuRaytraceFinishedOpt;
+        std::vector<Events::CPURaytraceFinishedEvent>   _cpuRaytraceResults;
+
+        int _selectedCPURaytraceResult = -1;
+        int _compareCPURaytraceResult = -1;
+        bool _isTraceOpen         = false;
+        int  _traceSelectedPixelX = -1;
+        int  _traceSelectedPixelY = -1;
+
+        void onCPURaytraceFinishEvent(Events::CPURaytraceFinishedEvent& event);
     };
 } // namespace Prism::UI

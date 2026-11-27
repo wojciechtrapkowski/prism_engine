@@ -22,6 +22,7 @@ add_subdirectory(components)
 add_subdirectory(utils)
 add_subdirectory(managers)
 add_subdirectory(ui)
+add_subdirectory(assets)
 
 # Link required libraries
 target_link_libraries(PrismMain

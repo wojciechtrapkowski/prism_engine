@@ -8,6 +8,9 @@ set(LOADERS_SOURCES
     mesh_loader.cpp
     window_loader.cpp
     vulkan_loader.cpp
+    cpu_raytrace_result_loader.cpp
+    cpu_bvh_build_morton_loader.cpp
+    cpu_bvh_build_sah_loader.cpp
 )
 
 set(LOADERS_HEADERS
@@ -15,6 +18,9 @@ set(LOADERS_HEADERS
     public/loaders/mesh_loader.hpp
     public/loaders/window_loader.hpp
     public/loaders/vulkan_loader.hpp
+    public/loaders/cpu_raytrace_result_loader.hpp
+    public/loaders/cpu_bvh_build_morton_loader.hpp
+    public/loaders/cpu_bvh_build_sah_loader.hpp
 )
 
 add_library(${PRISM_LOADERS_LIBRARY_NAME} STATIC

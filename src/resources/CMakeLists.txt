@@ -10,6 +10,8 @@ set(RESOURCES_SOURCES
     vulkan_resource.cpp
     context_resources.cpp
     render_target_resource.cpp
+    cpu_bvh_resource.cpp
+    cpu_raytrace_result_resource.cpp
     
     vulkan/vk_command_pool_resource.cpp
     vulkan/vk_framebuffer_resource.cpp
@@ -30,6 +32,8 @@ set(RESOURCES_HEADERS
     public/resources/vulkan_resource.hpp
     public/resources/resource_storage.hpp
     public/resources/render_target_resource.hpp
+    public/resources/cpu_bvh_resource.hpp
+    public/resources/cpu_raytrace_result_resource.hpp
 
     public/resources/vulkan/vk_command_pool_resource.hpp
     public/resources/vulkan/vk_framebuffer_resource.hpp
