@@ -85,9 +85,7 @@ namespace Prism::UI
                     cpuRaytraceResultsLabels[i] = cpuRaytraceResultsLabelsStr[i].c_str();
                 }
 
-                int& currentTrace = meshDrawingSystemSettings.customRaytracedGeometryDrawingSystemSettings.selectedCPURaytraceResult;
-
-                if (ImGui::Combo("Traces", &currentTrace, cpuRaytraceResultsLabels.data(), static_cast<int>(cpuRaytraceResultsLabels.size()))) {
+                if (ImGui::Combo("Traces", &_selectedCPURaytraceResult, cpuRaytraceResultsLabels.data(), static_cast<int>(cpuRaytraceResultsLabels.size()))) {
                 }
 
                 if (ImGui::Button("Open")) {
@@ -95,12 +93,20 @@ namespace Prism::UI
                 }
 
                 if (_isTraceOpen) {
+                    auto& traceResult     = _cpuRaytraceResults[_selectedCPURaytraceResult];
+                    auto  outputId        = traceResult.outputId;
+                    auto& systemsStorage  = scene.GetSystemsStorage();
+                    auto  outputResultOpt = systemsStorage.Get<Resources::CPURaytraceResultResource>(outputId);
+
+                    if (!outputResultOpt) {
+                        throw std::runtime_error("Couldn't get CPU raytrace result!");
+                    }
+                    auto& outputResult = outputResultOpt->get();
+
                     if (ImGui::Begin("Raytrace Result", &_isTraceOpen)) {
                         constexpr auto SCALE = 3;
 
                         ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-                        auto& traceResult = _cpuRaytraceResults[currentTrace];
 
                         // Scale the image, so we can show per pixel statistics.
                         ImVec2 imageSize(traceResult.width * SCALE, traceResult.height * SCALE);
@@ -146,22 +152,68 @@ namespace Prism::UI
 
                             drawList->AddRect(startPosition, endPosition, IM_COL32(255, 0, 0, 255));
 
-                            auto outputId = traceResult.outputId;
+                            auto& pixelData = outputResult.Data()[_traceSelectedPixelY * traceResult.width + _traceSelectedPixelX];
 
-                            auto& systemsStorage  = scene.GetSystemsStorage();
-                            auto  outputResultOpt = systemsStorage.Get<Resources::CPURaytraceResultResource>(outputId);
-
-                            if (outputResultOpt) {
-                                auto& outputResult = outputResultOpt->get();
-                                auto& pixelData    = outputResult.Data()[_traceSelectedPixelY * traceResult.width + _traceSelectedPixelX];
-
-                                auto label =
-                                    std::format("AABB intersections: {}\nTriangle hits count: {}\n", pixelData.aabbIntersections, pixelData.triangleHits);
-                                ImGui::TextUnformatted(label.c_str());
-                            }
+                            auto label = std::format("AABB intersections: {}\nTriangle hits count: {}\n", pixelData.aabbIntersections, pixelData.triangleHits);
+                            ImGui::TextUnformatted(label.c_str());
                         }
 
                         ImGui::End(); // Pixel statistics
+
+                        bool compareOpen = true;
+                        ImGui::Begin("Compare", &compareOpen);
+
+                        if (ImGui::Combo(
+                                "Compare to", &_compareCPURaytraceResult, cpuRaytraceResultsLabels.data(), static_cast<int>(cpuRaytraceResultsLabels.size())))
+                        {}
+
+                        if (_compareCPURaytraceResult != -1) {
+                            auto baseResultStatistics = outputResult.GetStatistics();
+
+                            auto compareResultId  = _cpuRaytraceResults[_compareCPURaytraceResult];
+                            auto compareResultOpt = systemsStorage.Get<Resources::CPURaytraceResultResource>(compareResultId.outputId);
+                            if (!compareResultOpt) {
+                                throw std::runtime_error("Couldn't get CPU compare raytrace reuslt!");
+                            }
+                            auto& compareResult = compareResultOpt->get();
+
+                            auto compareResultStatistics = compareResult.GetStatistics();
+
+                            if (ImGui::BeginTable("Comparision results", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                                auto baseTrace    = std::format("Trace {}", _selectedCPURaytraceResult);
+                                auto compareTrace = std::format("Trace {}", _compareCPURaytraceResult);
+;
+                                ImGui::TableSetupColumn(""); 
+                                ImGui::TableSetupColumn(baseTrace.c_str());
+                                ImGui::TableSetupColumn(compareTrace.c_str());
+
+                                ImGui::TableHeadersRow();
+
+                                ImGui::TableNextRow();
+                                ImGui::TableNextColumn();
+                                ImGui::TableHeader("AABB intersections");
+
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%d", baseResultStatistics.averageAABBIntersections);
+
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%d", compareResultStatistics.averageAABBIntersections);
+
+                                ImGui::TableNextRow();
+                                ImGui::TableNextColumn();
+                                ImGui::TableHeader("Triangle hits");
+
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%d", baseResultStatistics.averageTriangleHits);
+
+                                ImGui::TableNextColumn();
+                                ImGui::Text("%d", compareResultStatistics.averageTriangleHits);
+
+                                ImGui::EndTable();
+                            }
+                        }
+
+                        ImGui::End(); // Compare open
                     }
                     ImGui::End();     // Raytrace Result - must be called even if Begin returned false
                 }

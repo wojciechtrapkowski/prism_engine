@@ -19,7 +19,6 @@ namespace Prism::Components
                 SAH
             } builder = Builder::MORTON;
 
-            int selectedCPURaytraceResult = 0;
             int raytracingWidth           = 512;
             int raytracingHeight          = 256;            
         };

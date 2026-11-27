@@ -31,6 +31,8 @@ namespace Prism::UI
         std::optional<Events::CPURaytraceFinishedEvent> _cpuRaytraceFinishedOpt;
         std::vector<Events::CPURaytraceFinishedEvent>   _cpuRaytraceResults;
 
+        int _selectedCPURaytraceResult = -1;
+        int _compareCPURaytraceResult = -1;
         bool _isTraceOpen         = false;
         int  _traceSelectedPixelX = -1;
         int  _traceSelectedPixelY = -1;
