@@ -88,7 +88,7 @@ namespace Prism::UI
                 if (ImGui::Combo("Traces", &_selectedCPURaytraceResult, cpuRaytraceResultsLabels.data(), static_cast<int>(cpuRaytraceResultsLabels.size()))) {
                 }
 
-                if (ImGui::Button("Open")) {
+                if (ImGui::Button("Open") && _selectedCPURaytraceResult != -1) {
                     _isTraceOpen = true;
                 }
 

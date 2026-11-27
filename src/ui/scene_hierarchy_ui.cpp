@@ -315,6 +315,34 @@ namespace Prism::UI
                     ImGui::EndMenu();
                 }
 
+                if (ImGui::MenuItem("Duplicate entity")) {
+                    auto copiedEntity = registry.create();
+
+                    for (auto [id, storage] : registry.storage()) {
+                        if (storage.contains(entity) && !storage.contains(copiedEntity)) {
+                            storage.push(copiedEntity, storage.value(entity));
+                        }
+                    }
+
+                    if (registry.all_of<Components::Name>(copiedEntity)) {
+                        auto& copiedEntityName = registry.get<Components::Name>(copiedEntity);
+
+                        copiedEntityName.name = std::format("{} Copy", copiedEntityName.name);
+
+                        auto nameView = registry.view<Components::Name>();
+                        int  counter  = 0;
+                        for (const auto&& [entity, name] : nameView.each()) {
+                            if (name.name.starts_with(copiedEntityName.name) && copiedEntity != entity) {
+                                counter++;
+                            }
+                        }
+
+                        if (counter > 0) {
+                            copiedEntityName.name = std::format("{} {}", copiedEntityName.name, counter);   
+                        }
+                    }
+                }
+                
                 // Note: This must be the last item in the popup!
                 if (ImGui::MenuItem("Remove entity")) {
                     registry.destroy(entity);
@@ -386,7 +414,7 @@ namespace Prism::UI
         }
     } // namespace
 
-    SceneHierarchyUI::SceneHierarchyUI(Resources::ContextResources& contextResources) : _contextResources(contextResources) {};
+    SceneHierarchyUI::SceneHierarchyUI(Resources::ContextResources& contextResources) : _contextResources(contextResources){};
 
     void SceneHierarchyUI::Update(float deltaTime, Resources::Scene& scene)
     {
